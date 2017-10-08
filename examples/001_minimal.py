@@ -21,4 +21,4 @@ def second(some_df, **context):
 
 
 if __name__ == '__main__':
-    pl.run_cli(locals())
+    pl.run(locals())

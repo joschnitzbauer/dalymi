@@ -108,15 +108,19 @@ class Pipeline:
             # auto-detect tasks without downstream dependencies and run them
             pass
 
-    def run_cli(self, tasks):
+    def run(self, tasks):
         parser = argparse.ArgumentParser()
         parser.add_argument('-t', '--task')
         parser.add_argument('-e', '--execution-date', type=pd.to_datetime, default=pd.to_datetime('now'))
         parser.add_argument('-f', '--force-run', action='store_true')
         args = parser.parse_args()
-        context = DEFAULT_CONTEXT.copy()
         args_dict = vars(args)
         task_str = args_dict.pop('task')
-        task = tasks[task_str]
+        if task_str:
+            task = tasks[task_str]
+        else:
+            # auto-detect dag
+            pass
+        context = DEFAULT_CONTEXT.copy()
         context.update(args_dict)
-        self.run(task=task, context=context)
+        task(**context)
