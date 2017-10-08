@@ -16,13 +16,13 @@ class Pipeline:
         self.write_func = write_func
         self.check_input = check_input
 
-    def ensure_input(self, producers, context):
-        for producer in producers:
-            inputs = producers[producer]
-            for input in inputs:
-                input = input.format(**context)
-                if not self.check_input(input):
-                    print('Missing input', input)
+    def ensure_input(self, dependencies, context):
+        for producer in dependencies:
+            products = dependencies[producer]
+            for product in products:
+                product = product.format(**context)
+                if not self.check_input(product):
+                    print('Missing input', product)
                     producer(**context)
                     break
                 elif context['force_run']:
@@ -30,12 +30,12 @@ class Pipeline:
                     producer(**context)
                     break
 
-    def input(self, **producers):
+    def input(self, **dependencies):
         def in_decorator(func):
             @wraps(func)
             def func_wrapped(**context):
                 print('Attempting', func)
-                self.ensure_input(producers, context)
+                self.ensure_input(dependencies, context)
                 print('Running', func)
                 return func(**context)
             return func_wrapped
