@@ -5,7 +5,7 @@ import pandas as pd
 
 class IO:
 
-    def __init__(self, load_resource=pd.read_csv, save_resource=lambda df: df.to_csv):
+    def __init__(self, load_resource=pd.read_csv, save_resource=lambda df, path: df.to_csv(path)):
         self.load_resource = load_resource
         self.save_resource = save_resource
         self.resources = {}
@@ -27,21 +27,21 @@ class IO:
     def load_input(self, *inputs):
         def load_output_decorator(func):
             @wraps(func)
-            def func_wrapped(**context):
+            def func_wrapped(*args, **kwargs):
                 print('Loading input of', func)
-                inputs_dict = self._load_resources(inputs, context)
-                kwargs = {**inputs_dict, **context}
-                return func(**kwargs)
+                inputs_dict = self._load_resources(inputs, kwargs)
+                kwargs = {**inputs_dict, **kwargs}
+                return func(*args, **kwargs)
             return func_wrapped
         return load_output_decorator
 
     def save_output(self, **outputs):
         def save_output_decorator(func):
             @wraps(func)
-            def func_wrapped(**context):
-                results = func(**context)
+            def func_wrapped(*args, **kwargs):
+                results = func(*args, **kwargs)
                 print('Saving output of', func)
-                self._save_resources(outputs, results, context)
+                self._save_resources(outputs, results, kwargs)
                 return results
             return func_wrapped
             # register the output so that other functions can find it via `load_input`
