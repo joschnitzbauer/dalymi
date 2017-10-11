@@ -76,10 +76,10 @@ class Pipeline:
             return func_wrapped
         return ensure_dependencies_decorator
 
-    def save_output(self, **outputs):
+    def save_output(self, *args, **kwargs):
         '''
         A decorator that does two things:
-            (a) saves objects of the returned dictionary using self.save_target for any matching key of **outputs to the path given by the respective value in **outputs. The path is formatted with the context  beforehand.
+            (a) saves objects returned by the decorated function to the provided targets. The path is formatted with the context  beforehand.
             (b) registers **outputs as a function attribute, so that downstream tasks can check if the decorated function is fulfilled as a dependency.
         '''
         def save_output_decorator(func):
