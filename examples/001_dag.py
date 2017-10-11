@@ -14,4 +14,4 @@ def second():
 
 
 if __name__ == '__main__':
-    dag.run(locals())
+    dag.run()
