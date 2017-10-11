@@ -1,2 +1,2 @@
-from .dag import cli, ensure_dependencies
+from .dag import DAG
 from .input_output import IO
