@@ -13,23 +13,6 @@ class DAG:
     def __init__(self):
         self.finished_tasks = []
 
-    def cli(self, tasks):
-        parser = argparse.ArgumentParser()
-        parser.add_argument('-t', '--task')
-        parser.add_argument('-e', '--execution-date', type=pd.to_datetime, default=pd.to_datetime('now'))
-        parser.add_argument('-f', '--force-run', action='store_true')
-        args = parser.parse_args()
-        args_dict = vars(args)
-        task_str = args_dict.pop('task')
-        if task_str:
-            task = tasks[task_str]
-        else:
-            # auto-detect dag
-            pass
-        context = DEFAULT_CONTEXT.copy()
-        context.update(args_dict)
-        task(**context)
-
     def ensure_dependencies(self, *dependencies):
         '''
         A decorator ensuring that dependencies of the decorated function have run.
@@ -66,6 +49,23 @@ class DAG:
         '''
         for task in tasks:
             self.ensure_task(task, context)
+
+    def run(self, tasks):
+        parser = argparse.ArgumentParser()
+        parser.add_argument('-t', '--task')
+        parser.add_argument('-e', '--execution-date', type=pd.to_datetime, default=pd.to_datetime('now'))
+        parser.add_argument('-f', '--force-run', action='store_true')
+        args = parser.parse_args()
+        args_dict = vars(args)
+        task_str = args_dict.pop('task')
+        if task_str:
+            task = tasks[task_str]
+        else:
+            # auto-detect dag
+            pass
+        context = DEFAULT_CONTEXT.copy()
+        context.update(args_dict)
+        task(**context)
 
     def run_task(self, task, context):
         '''
