@@ -17,11 +17,18 @@ class Pipeline:
         self.consumers = {}
         self.verbose_during_setup = verbose_during_setup
 
-    def _io_wrapper_factory(self, func, input, output):
+    def _create_io_wrapper(self, func, input, output):
         name = func.__name__
 
         @wraps(func)
         def func_wrapped(**context):
+            # @TODO: simplify this code by
+            # check which inputs are missing
+            # if none, skip (return)
+            # if some, check which producers need to run
+            # run producers
+            # load inputs
+            # save results
             self.log(f'Checking if all outputs of function <{name}> exists.', context)
             for resource in output:
                 fpath = self.resources[resource]
@@ -38,16 +45,7 @@ class Pipeline:
                     break
             else:
                 self.log(f'Skipping function <{name}>, because all outputs exist.', context)
-        if input:
-            self.log(f'Registering function <{name}> as comsumer of {input}.', verbose=self.verbose_during_setup)
-            self.consumers[func_wrapped.__name__] = func_wrapped
-        if output:
-            self.log(f'Registerung function <{name}> as producer of {list(output.keys())}.',
-                     verbose=self.verbose_during_setup)
-            for resource in output:
-                self.producers[resource] = func_wrapped
-            self.log(f'Registering resources {output} of function <{name}>.', verbose=self.verbose_during_setup)
-            self.resources.update(output)
+
         return func_wrapped
 
     def cli(self):
@@ -62,7 +60,9 @@ class Pipeline:
 
     def io(self, input=[], output={}):
         def decorator(func):
-            return self._io_wrapper_factory(func, input, output)
+            func_wrapped = self._create_io_wrapper(func, input, output)
+            self.register_dag_func(func_wrapped, input, output)
+            return func_wrapped
         return decorator
 
     def log(self, message, context={'verbose': False}, verbose=False):
@@ -87,6 +87,17 @@ class Pipeline:
             self.log(f'Loading resource <{resource}>.', context)
             resources_dict[resource] = self.load_resource(path)
         return resources_dict
+
+    def register_dag_func(self, func, input, output):
+        if input:
+            self.log(f'Registering function <{name}> as comsumer of {input}.', verbose=self.verbose_during_setup)
+            self.consumers[func.__name__] = func
+        if output:
+            self.log(f'Registerung function <{name}> as producer of {list(output.keys())}.', verbose=self.verbose_during_setup)
+            for resource in output:
+                self.producers[resource] = func
+            self.log(f'Registering resources {output} of function <{name}>.', verbose=self.verbose_during_setup)
+            self.resources.update(output)
 
     def run(self, task=None, force=False, verbose=False, **context):
         context['task'] = task
