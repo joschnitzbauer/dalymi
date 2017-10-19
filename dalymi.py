@@ -22,42 +22,56 @@ class Pipeline:
 
         @wraps(func)
         def func_wrapped(**context):
-            # @TODO: simplify this code by
-            # check which inputs are missing
-            # if none, skip (return)
-            # if some, check which producers need to run
-            # run producers
-            # load inputs
-            # save results
-            self.log(f'Checking if all outputs of function <{name}> exists.', context)
-            for resource in output:
-                fpath = self.resources[resource]
-                path = fpath.format(**context)
-                if not self.check_resource(path):
-                    self.log(f'Missing output <{resource}> of function <{name}> at <{path}>.', context)
-                    self.log(f'Attempting to load input for function <{name}>.', context)
-                    input_dict = self.load_resources(input, context)
-                    self.log(f'Attempting to run function <{name}>.', context)
-                    kwargs = {**input_dict, **context}
-                    results = func(**kwargs)
-                    self.log(f'Saving outputs of function <{name}>.', context)
-                    self.save_results(results, context)
-                    break
-            else:
+            self.log(f'Checking if outputs of function <{name}> exist.', context)
+            existing, missing = self.check_output(output, context)
+            if not missing:
                 self.log(f'Skipping function <{name}>, because all outputs exist.', context)
+                return
+            self.log(f'Missing outputs {missing} of function <{name}>.', context)
+            existing, missing = self.check_input(input, context)
+            producers = self.get_producers(missing)
+            for producer in producers:
+                self.log(f'Running producer {producer.__name__}.', context)
+                producer(**context)
+            self.log(f'Loading inputs {input}.', context)
+            input_dict = self.load_resources(input, context)
+            kwargs = {**input_dict, **context}
+            self.log(f'Attempting to run function <{name}>.', context)
+            results = func(**kwargs)
+            self.log(f'Saving outputs of function <{name}>.', context)
+            self.save_results(results, context)
 
         return func_wrapped
 
-    def get_missing_resources(self, resources, context):
-        '''
-        Checks whether the given resources exist at their target and returns the ones missing.
-        '''
+    def check_input(self, input, context):
+        existing = []
         missing = []
-        for resource, fpath in resources.items():
+        for resource in input:
+            fpath = self.resources[resource]
             path = fpath.format(**context)
-            if not self.check_resource(path):
+            if self.check_resource(path):
+                existing.append(resource)
+            else:
                 missing.append(resource)
-        return missing
+        return existing, missing
+
+    def check_output(self, output, context):
+        existing = []
+        missing = []
+        for resource, fpath in output.items():
+            path = fpath.format(**context)
+            if self.check_resource(path):
+                existing.append(resource)
+            else:
+                missing.append(resource)
+        return existing, missing
+
+    def get_producers(self, resources):
+        producers = []
+        for resource in resources:
+            producer = self.producers[resource]
+            producers.append(producer)
+        return producers
 
     def cli(self):
         parser = argparse.ArgumentParser()
@@ -81,16 +95,6 @@ class Pipeline:
             print(message)
 
     def load_resources(self, resources, context):
-        # run producers if resources do not exist
-        for resource in resources:
-            fpath = self.resources[resource]
-            path = fpath.format(**context)
-            if not self.check_resource(path):
-                self.log(f'Missing input <{resource}> at <{path}>.', context)
-                producer = self.producers[resource]
-                self.log(f'Attempting to run function <{producer.__name__}>.', context)
-                producer(**context)
-        # now load all resources
         resources_dict = {}
         for resource in resources:
             fpath = self.resources[resource]
