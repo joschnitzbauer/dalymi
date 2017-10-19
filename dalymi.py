@@ -26,8 +26,8 @@ class Pipeline:
             existing, missing = self.check_output(output, context)
             if missing:
                 self.log(f'Missing outputs {missing} of function <{name}>.', context)
-            elif not missing and context['force']:
-                self.log(f'Force-running function <{name}>.')
+            elif context['force']:
+                self.log(f'Force-running function <{name}>.', context)
             else:
                 self.log(f'Skipping function <{name}>, because all outputs exist.', context)
                 return
