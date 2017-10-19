@@ -137,7 +137,7 @@ class Pipeline:
 class PipelineCLI(argparse.ArgumentParser):
 
     def __init__(self, pipeline):
-        super().___init__()
+        super().__init__()
         self.pipeline = pipeline
         self.add_argument('-t', '--task', help='run a specific task')
         self.add_argument('-f', '--force', action='store_true',
