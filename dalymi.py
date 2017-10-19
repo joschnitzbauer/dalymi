@@ -14,7 +14,7 @@ class Pipeline:
         self.check_resource = check_resource
         self.resources = {}
         self.producers = {}
-        self.consumers = {}
+        self.funcs = {}
         self.verbose_during_setup = verbose_during_setup
 
     def _create_io_wrapper(self, func, input, output):
@@ -24,10 +24,13 @@ class Pipeline:
         def func_wrapped(**context):
             self.log(f'Checking if outputs of function <{name}> exist.', context)
             existing, missing = self.check_output(output, context)
-            if not missing:
+            if missing:
+                self.log(f'Missing outputs {missing} of function <{name}>.', context)
+            elif not missing and context['force']:
+                self.log(f'Force-running function <{name}>.')
+            else:
                 self.log(f'Skipping function <{name}>, because all outputs exist.', context)
                 return
-            self.log(f'Missing outputs {missing} of function <{name}>.', context)
             existing, missing = self.check_input(input, context)
             producers = self.get_producers(missing)
             for producer in producers:
@@ -105,9 +108,8 @@ class Pipeline:
 
     def register_dag_func(self, func, input, output):
         name = func.__name__
-        if input:
-            self.log(f'Registering function <{name}> as comsumer of {input}.', verbose=self.verbose_during_setup)
-            self.consumers[name] = func
+        self.log(f'Registering function <{name}> as DAG function.', verbose=self.verbose_during_setup)
+        self.funcs[name] = func
         if output:
             self.log(f'Registerung function <{name}> as producer of {list(output.keys())}.', verbose=self.verbose_during_setup)
             for resource in output:
@@ -122,13 +124,13 @@ class Pipeline:
         self.log('Running with context:', context)
         self.log(f'{context}', context)
         if task:
-            task = self.consumers[task]
+            task = self.funcs[task]
             task(**context)
         else:
             self.log('Auto-running DAG.', context)
-            for name, consumer in self.consumers.items():
+            for name, func in self.funcs.items():
                 self.log(f'Attemping function <{name}>.', context)
-                consumer(**context)
+                func(**context)
 
     def save_results(self, results, context):
         for resource, result in results.items():
