@@ -18,6 +18,17 @@ class Pipeline:
         self.verbose_during_setup = verbose_during_setup
 
     def _create_io_wrapper(self, func, input, output):
+        '''
+        Creates a wrapped function of `func` which can be returned by the `io` decorator.
+        This is the core logic of DAG functions.
+
+        Args:
+            input (list): resource IDs
+            output (dict): a dictionary with resource IDs as keys and target templates as values.
+
+        Returns:
+            The wrapped version of `func`.
+        '''
         name = func.__name__
 
         @wraps(func)
@@ -47,6 +58,17 @@ class Pipeline:
         return func_wrapped
 
     def check_input(self, input, context):
+        '''
+        Checks whether the specified input resources are available.
+
+        Args:
+            input (list): resource IDs
+            context (dict): the context
+
+        Returns:
+            existing (list): resource IDs with exisiting target
+            missing (list): resource IDs with missing target
+        '''
         existing = []
         missing = []
         for resource in input:
@@ -59,6 +81,17 @@ class Pipeline:
         return existing, missing
 
     def check_output(self, output, context):
+        '''
+        Checks whether the specified output resources are available.
+
+        Args:
+            output (dict): a dictionary with resource IDs as keys and target templates as values.
+            context (dict): the context
+
+        Returns:
+            existing (list): resource IDs with exisiting target
+            missing (list): resource IDs with missing target
+        '''
         existing = []
         missing = []
         for resource, fpath in output.items():
@@ -70,10 +103,22 @@ class Pipeline:
         return existing, missing
 
     def cli(self):
+        '''
+        Runs the default command line interface of this `Pipeline`.
+        '''
         pipeline_cli = PipelineCLI(self)
         pipeline_cli.run()
 
     def get_producers(self, resources):
+        '''
+        Returns the producers of the specified resources.
+
+        Args:
+            resources (list): resource IDs
+
+        Returns:
+            producers (list): function names of producers
+        '''
         producers = []
         for resource in resources:
             producer = self.producers[resource]
@@ -81,6 +126,19 @@ class Pipeline:
         return producers
 
     def io(self, input=[], output={}):
+        '''
+        A decorator to specify which input and output resources the decorated function produces.
+        Registers the function and output resources in the `Pipeline`.
+
+        Args:
+            input (list): a list of consumed resource IDs which are loaded and supplied to the decorated function as
+                          keyword arguments.
+            output (dict): a dictionary to specify which under which resource ID the function outputs should be
+                           registered (keys), and what their resource template is (values)
+
+        Returns:
+            The decorated function.
+        '''
         def decorator(func):
             func_wrapped = self._create_io_wrapper(func, input, output)
             self.register_dag_func(func_wrapped, input, output)
