@@ -69,22 +69,16 @@ class Pipeline:
                 missing.append(resource)
         return existing, missing
 
+    def cli(self):
+        pipeline_cli = PipelineCLI(self)
+        pipeline_cli.run()
+
     def get_producers(self, resources):
         producers = []
         for resource in resources:
             producer = self.producers[resource]
             producers.append(producer)
         return producers
-
-    def cli(self):
-        parser = argparse.ArgumentParser()
-        parser.add_argument('-t', '--task', help='run a specific task')
-        parser.add_argument('-f', '--force', action='store_true',
-                            help='force tasks to run even if they already have output')
-        parser.add_argument('-v', '--verbose', action='store_true', help='be verbose about pipeline internals')
-        args = parser.parse_args()
-        context = vars(args)
-        self.run(**context)
 
     def io(self, input=[], output={}):
         def decorator(func):
@@ -138,3 +132,19 @@ class Pipeline:
             path = fpath.format(**context)
             self.log(f'Saving resource <{resource}> at <{path}>.', context)
             self.save_resource(result, path)
+
+
+class PipelineCLI(argparse.ArgumentParser):
+
+    def __init__(self, pipeline):
+        super().___init__()
+        self.pipeline = pipeline
+        self.add_argument('-t', '--task', help='run a specific task')
+        self.add_argument('-f', '--force', action='store_true',
+                          help='force tasks to run even if they already have output')
+        self.add_argument('-v', '--verbose', action='store_true', help='be verbose about pipeline internals')
+
+    def run(self):
+        args = self.parse_args()
+        context = vars(args)
+        self.pipeline.run(**context)
