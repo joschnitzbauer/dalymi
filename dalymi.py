@@ -48,6 +48,17 @@ class Pipeline:
 
         return func_wrapped
 
+    def get_missing_resources(self, resources, context):
+        '''
+        Checks whether the given resources exist at their target and returns the ones missing.
+        '''
+        missing = []
+        for resource, fpath in resources.items():
+            path = fpath.format(**context)
+            if not self.check_resource(path):
+                missing.append(resource)
+        return missing
+
     def cli(self):
         parser = argparse.ArgumentParser()
         parser.add_argument('-t', '--task', help='run a specific task')
@@ -89,9 +100,10 @@ class Pipeline:
         return resources_dict
 
     def register_dag_func(self, func, input, output):
+        name = func.__name__
         if input:
             self.log(f'Registering function <{name}> as comsumer of {input}.', verbose=self.verbose_during_setup)
-            self.consumers[func.__name__] = func
+            self.consumers[name] = func
         if output:
             self.log(f'Registerung function <{name}> as producer of {list(output.keys())}.', verbose=self.verbose_during_setup)
             for resource in output:
