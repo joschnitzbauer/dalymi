@@ -146,10 +146,24 @@ class Pipeline:
         return decorator
 
     def log(self, message, context={'verbose': False}, verbose=False):
+        '''
+        Logs the supplied message which is currently equivalent to printing (to be improved).
+        Additionally, the message is verbosed to the command line if either the `context['verbose']` or the keyword
+        argument `verbose` is True. The keyword argument is essential for logging during DAG definition, because at
+        this time, there is no context available yet.
+        '''
         if verbose or context['verbose']:
             print(message)
 
     def load_resources(self, resources, context):
+        '''
+        Loads resources into memory.
+
+        Args:
+            @TODO
+        Returns:
+            @TODO
+        '''
         resources_dict = {}
         for resource in resources:
             fpath = self.resources[resource]
