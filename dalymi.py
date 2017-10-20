@@ -1,6 +1,7 @@
 import argparse
 from functools import wraps
 import os.path
+import pprint
 
 import pandas as pd
 import numpy as np
@@ -154,7 +155,7 @@ class Pipeline:
         this time, there is no context available yet.
         '''
         if verbose or context['verbose']:
-            print(message)
+            pprint.pprint(message)
 
     def load_resources(self, resources, context):
         '''
@@ -227,9 +228,9 @@ class PipelineCLI(argparse.ArgumentParser):
                           help='force tasks to run even if they already have output')
         self.add_argument('-v', '--verbose', action='store_true', help='be verbose about pipeline internals')
 
-    def run(self):
+    def run(self, context={}):
         args = self.parse_args()
-        context = vars(args)
+        context = {**vars(args), **context}
         self.pipeline.run(**context)
 
 
