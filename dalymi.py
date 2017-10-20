@@ -306,6 +306,7 @@ def assert_output_uniqueness(**keys):
         def decorated_func(*args, **kwargs):
             results = func(*args, **kwargs)
             _assert_resources_uniqueness(results, keys)
+            return results
 
         return decorated_func
     return decorator
