@@ -3,6 +3,7 @@ from functools import wraps
 import os.path
 
 import pandas as pd
+import numpy as np
 
 
 class Pipeline:
@@ -230,3 +231,119 @@ class PipelineCLI(argparse.ArgumentParser):
         args = self.parse_args()
         context = vars(args)
         self.pipeline.run(**context)
+
+
+def _assert_resources_columns(resources, columns):
+    for resource, resource_columns in columns.items():
+        assert set(resources[resource].columns) == set(resource_columns), \
+            f'Columns of resource <{resource}> do not match expected. ' \
+            + f'Present: {set(resources[resource].columns)}. Expected: {set(resource_columns)}.'
+
+
+def assert_input_columns(**columns):
+    '''
+    Decorator to assert that the column names of input dataframes are exactly what is expected.
+    Expected column names are supplied as lists for each input resource ID as keyword arguments.
+    '''
+    def decorator(func):
+
+        @wraps(func)
+        def decorated_func(*args, **kwargs):
+            _assert_resources_columns(kwargs, columns)
+            return func(*args, **kwargs)
+
+        return decorated_func
+    return decorator
+
+
+def assert_output_columns(**columns):
+    '''
+    Decorator to assert that the column names of output dataframes are exactly what is expected.
+    Expected column names are supplied as lists for each output resource ID as keyword arguments.
+    '''
+    def decorator(func):
+
+        @wraps(func)
+        def decorated_func(*args, **kwargs):
+            results = func(*args, **kwargs)
+            _assert_resources_columns(results, columns)
+            return results
+
+        return decorated_func
+    return decorator
+
+
+def _assert_resources_uniqueness(resources, keys):
+    for resource, uniqueness_keys in keys.items():
+        rows_per_group = resources[resource].groupby(uniqueness_keys).size()
+        assert np.all(rows_per_group == 1), \
+            f'Resource <{resource}> contains duplicates for key identifers {uniqueness_keys}.'
+
+
+def assert_input_uniqueness(**keys):
+    '''
+    Decorator to assert that function inputs have no duplicate entries for a set of unique identifier key columns.
+    '''
+    def decorator(func):
+
+        @wraps(func)
+        def decorated_func(*args, **kwargs):
+            _assert_resources_uniqueness(kwargs, keys)
+            return func(*args, **kwargs)
+
+        return decorated_func
+    return decorator
+
+
+def assert_output_uniqueness(**keys):
+    '''
+    Decorator to assert that function outputs have no duplicate entries for a set of unique identifier key columns.
+    '''
+    def decorator(func):
+
+        @wraps(func)
+        def decorated_func(*args, **kwargs):
+            results = func(*args, **kwargs)
+            _assert_resources_uniqueness(results, keys)
+
+        return decorated_func
+    return decorator
+
+
+def _assert_resources_completeness(resources, ids):
+    for resource in ids:
+        df = resources[resource]
+        number_of_nas = df.isnull().sum()
+        columns_with_nas = number_of_nas[number_of_nas > 0]
+        assert columns_with_nas == 0, f'Resource <{resource}> contains NA values: {columns_with_nas.to_dict()}.'
+
+
+def assert_input_completeness(*input):
+    '''
+    Decorator to assert that input data has no missing values.
+    '''
+    def decorator(func):
+
+        @wraps(func)
+        def decorated_func(*args, **kwargs):
+            _assert_resources_completeness(kwargs, input)
+            return func(*args, **kwargs)
+
+        return decorated_func
+    return decorator
+
+
+def assert_output_completeness(*output):
+    '''
+    Decorator to assert that output data has no missing values.
+    '''
+    def decorator(func):
+
+        @wraps(func)
+        def decorated_func(*args, **kwargs):
+            results = func(*args, **kwargs)
+            _assert_resources_completeness(results, output)
+            return results
+
+        return decorated_func
+    return decorator
