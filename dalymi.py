@@ -160,9 +160,11 @@ class Pipeline:
         Loads resources into memory.
 
         Args:
-            @TODO
+            resources (list): a list of resource IDs
+            context (dict): the context
+
         Returns:
-            @TODO
+            resources (dict): a dictionary of resources with IDs as keys and data frames as values
         '''
         resources_dict = {}
         for resource in resources:
@@ -173,6 +175,14 @@ class Pipeline:
         return resources_dict
 
     def register_dag_func(self, func, input, output):
+        '''
+        Stores relevant information for the DAG of the given function.
+
+        Args:
+            func (callable): the function to be registered
+            input (list): resource IDs of function input
+            output (list): resource IDs of function output
+        '''
         name = func.__name__
         self.log(f'Registering function <{name}> as DAG function.', verbose=self.verbose_during_setup)
         self.funcs[name] = func
