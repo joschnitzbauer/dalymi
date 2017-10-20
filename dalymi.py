@@ -317,7 +317,7 @@ def _assert_resources_completeness(resources, ids):
         df = resources[resource]
         number_of_nas = df.isnull().sum()
         columns_with_nas = number_of_nas[number_of_nas > 0]
-        assert columns_with_nas == 0, f'Resource <{resource}> contains NA values: {columns_with_nas.to_dict()}.'
+        assert len(columns_with_nas) == 0, f'Resource <{resource}> contains NA values: {columns_with_nas.to_dict()}.'
 
 
 def assert_input_completeness(*input):
