@@ -359,3 +359,48 @@ def assert_output_completeness(*output):
 
         return decorated_func
     return decorator
+
+
+def _assert_resources_range(resources, ranges):
+    for resource_id, column_ranges in ranges.items():
+        resource = resources[resource_id]
+        for column, column_range in column_ranges.items():
+            column_min = resource[column].min()
+            column_max = resource[column].max()
+            assert column_min >= column_range[0], \
+                f'Column <{column}> of resource <{resource_id}> does not meet minimum value requirement. ' + \
+                f'Present minimum value: {column_min}. Expected minimum: {column_range[0]}.'
+            assert column_max <= column_range[1], \
+                f'Column <{column}> of resource <{resource_id}> does not meet maximum value requirement. ' + \
+                f'Present maximum value: {column_max}. Expected maximum: {column_range[1]}.'
+
+
+def assert_input_range(**input):
+    '''
+    Decorator to assert that input data is in a specific range.
+    '''
+    def decorator(func):
+
+        @wraps(func)
+        def decorated_func(*args, **kwargs):
+            _assert_resources_range(kwargs, input)
+            return func(*args, **kwargs)
+
+        return decorated_func
+    return decorator
+
+
+def assert_output_range(**output):
+    '''
+    Decorator to assert that output data is in a specific range.
+    '''
+    def decorator(func):
+
+        @wraps(func)
+        def decorated_func(*args, **kwargs):
+            results = func(*args, **kwargs)
+            _assert_resources_range(results, output)
+            return results
+
+        return decorated_func
+    return decorator
