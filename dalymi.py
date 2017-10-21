@@ -45,9 +45,15 @@ class Pipeline:
                 self.log(f'Skipping function <{name}>, because all outputs exist.', context)
                 return
             existing, missing = self.check_input(input, context)
-            producers = self.get_producers(missing)
-            for producer in producers:
-                self.log(f'Running producer {producer.__name__}.', context)
+            producers_missing = self.get_producers(missing)
+            if context['force_upstream']:
+                producers_all = self.get_producers(existing + missing)
+                producers_forced = set(producers_all) - set(producers_missing)
+                for producer in producers_forced:
+                    self.log(f'Enforcing producer <{producer.__name__}>.', context)
+                    producer(**context)
+            for producer in producers_missing:
+                self.log(f'Running producer <{producer.__name__}>.', context)
                 producer(**context)
             self.log(f'Loading inputs {input}.', context)
             input_dict = self.load_resources(input, context)
@@ -195,11 +201,14 @@ class Pipeline:
             self.log(f'Registering resources {output} of function <{name}>.', verbose=self.verbose_during_setup)
             self.resources.update(output)
 
-    def run(self, task=None, force=False, verbose=False, **context):
+    def run(self, task=None, force=False, force_upstream=False, verbose=False, **context):
         context['task'] = task
         context['force'] = force
+        context['force_upstream'] = force_upstream
         context['verbose'] = verbose
-        self.log('Running with context:\n' + pprint.pformat(context), context)
+        pretty_context = pprint.pformat(context)
+        pretty_indented_context = '\n'.join(['  ' + _ for _ in pretty_context.split('\n')])
+        self.log('Running with context:\n' + pretty_indented_context, context)
         if task:
             task = self.funcs[task]
             task(**context)
@@ -225,6 +234,8 @@ class PipelineCLI(argparse.ArgumentParser):
         self.add_argument('-t', '--task', help='run a specific task')
         self.add_argument('-f', '--force', action='store_true',
                           help='force tasks to run even if they already have output')
+        self.add_argument('-u', '--force-upstream', action='store_true',
+                          help='force-run upstream dependencies of any attempted task')
         self.add_argument('-v', '--verbose', action='store_true', help='be verbose about pipeline internals')
 
     def run(self, context={}):
