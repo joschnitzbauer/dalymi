@@ -155,7 +155,7 @@ class Pipeline:
         this time, there is no context available yet.
         '''
         if verbose or context['verbose']:
-            pprint.pprint(message)
+            print(message)
 
     def load_resources(self, resources, context):
         '''
@@ -199,8 +199,7 @@ class Pipeline:
         context['task'] = task
         context['force'] = force
         context['verbose'] = verbose
-        self.log('Running with context:', context)
-        self.log(f'{context}', context)
+        self.log('Running with context:\n' + pprint.pformat(context), context)
         if task:
             task = self.funcs[task]
             task(**context)
