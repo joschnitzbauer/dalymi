@@ -9,15 +9,23 @@ import numpy as np
 
 class Resource:
 
-    def __init__(self, name, loc, load=pd.read_csv, save=lambda df, path: df.to_csv(path), check=os.path.isfile):
+    def __init__(self, name, loc, load=pd.read_csv, save=lambda df, path: df.to_csv(path), check=os.path.isfile,
+                 columns=None):
         self.name = name
         self.loc = loc
         self._load = load
         self._save = save
         self._check = check
+        self.columns = columns
 
     def __repr__(self):
         return self.name
+
+    def assert_columns(self, df):
+        if self.columns is not None:
+            assert set(df.columns) == set(self.columns), \
+                f'Columns of resource <{self.name}> do not match expected. ' \
+                + f'Present: {set(df.columns)}. Expected: {set(self.columns)}.'
 
     def check(self, context):
         path = self.loc.format(**context)
@@ -25,11 +33,14 @@ class Resource:
 
     def load(self, context):
         path = self.loc.format(**context)
-        return self._load(path)
+        df = self._load(path)
+        self.assert_columns(df)
+        return df
 
-    def save(self, result, context):
+    def save(self, df, context):
+        self.assert_columns(df)
         path = self.loc.format(**context)
-        self._save(result, path)
+        self._save(df, path)
 
 
 class Pipeline:
@@ -147,46 +158,6 @@ class PipelineCLI(argparse.ArgumentParser):
         args = self.parse_args()
         context = {**vars(args), **context}
         self.pipeline.run(**context)
-
-
-def _assert_resources_columns(resources, columns):
-    for resource, resource_columns in columns.items():
-        assert set(resources[resource].columns) == set(resource_columns), \
-            f'Columns of resource <{resource}> do not match expected. ' \
-            + f'Present: {set(resources[resource].columns)}. Expected: {set(resource_columns)}.'
-
-
-def assert_input_columns(**columns):
-    '''
-    Decorator to assert that the column names of input dataframes are exactly what is expected.
-    Expected column names are supplied as lists for each input resource ID as keyword arguments.
-    '''
-    def decorator(func):
-
-        @wraps(func)
-        def decorated_func(*args, **kwargs):
-            _assert_resources_columns(kwargs, columns)
-            return func(*args, **kwargs)
-
-        return decorated_func
-    return decorator
-
-
-def assert_output_columns(**columns):
-    '''
-    Decorator to assert that the column names of output dataframes are exactly what is expected.
-    Expected column names are supplied as lists for each output resource ID as keyword arguments.
-    '''
-    def decorator(func):
-
-        @wraps(func)
-        def decorated_func(*args, **kwargs):
-            results = func(*args, **kwargs)
-            _assert_resources_columns(results, columns)
-            return results
-
-        return decorated_func
-    return decorator
 
 
 def _assert_resources_uniqueness(resources, keys):
