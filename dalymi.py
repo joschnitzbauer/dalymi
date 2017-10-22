@@ -2,6 +2,7 @@ import argparse
 from functools import wraps
 import os.path
 import pprint
+import pickle
 
 import pandas as pd
 import numpy as np
@@ -9,29 +10,20 @@ import numpy as np
 
 class Resource:
 
-    def __init__(self, name, loc, load=pd.read_csv, save=lambda df, path: df.to_csv(path), check=os.path.isfile,
-                 columns=None, custom_assertions=[]):
+    def __init__(self, name, loc, load, save, check, assertions=[]):
         self.name = name
         self.loc = loc
         self._load = load
         self._save = save
         self._check = check
-        self.columns = columns
-        self.custom_assertions = custom_assertions
+        self.assertions = assertions
 
     def __repr__(self):
         return self.name
 
-    def assert_integrity(self, df):
-        self.assert_columns(df)
-        for custom_assertion in self.custom_assertions:
-            custom_assertion(df)
-
-    def assert_columns(self, df):
-        if self.columns is not None:
-            assert set(df.columns) == set(self.columns), \
-                f'Columns of resource <{self.name}> do not match expected. ' \
-                + f'Present: {set(df.columns)}. Expected: {set(self.columns)}.'
+    def assert_integrity(self, data):
+        for assertion in self.assertions:
+            assertion(data)
 
     def check(self, context):
         path = self.loc.format(**context)
@@ -39,14 +31,43 @@ class Resource:
 
     def load(self, context):
         path = self.loc.format(**context)
-        df = self._load(path)
-        self.assert_integrity(df)
-        return df
+        data = self._load(path)
+        self.assert_integrity(data)
+        return data
 
-    def save(self, df, context):
-        self.assert_integrity(df)
+    def save(self, data, context):
+        self.assert_integrity(data)
         path = self.loc.format(**context)
-        self._save(df, path)
+        self._save(data, path)
+
+
+class DataFrameResource(Resource):
+
+    def __init__(self, name, loc, load=pd.read_csv, save=lambda df, path: df.to_csv(path), check=os.path.isfile,
+                 columns=None, custom_assertions=[]):
+        assertions = [self.assert_columns] + custom_assertions
+        super().__init__(name, loc, load, save, check, assertions=assertions)
+        self.columns = columns
+
+    def assert_columns(self, df):
+        if self.columns is not None:
+            assert set(df.columns) == set(self.columns), \
+                f'Columns of resource <{self.name}> do not match expected. ' \
+                + f'Present: {set(df.columns)}. Expected: {set(self.columns)}.'
+
+
+class PickleResource(Resource):
+
+    def __init__(self, name, loc, custom_assertions=[]):
+        super().__init__(name, loc, self._load, self._save, os.path.isfile, assertions=custom_assertions)
+
+    def _load(self, path):
+        with open(path, 'rb') as f:
+            return pickle.load(f)
+
+    def _save(self, data, path):
+        with open(path, 'wb') as f:
+            pickle.dump(data, f)
 
 
 class Pipeline:
