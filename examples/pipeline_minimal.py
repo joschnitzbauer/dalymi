@@ -1,17 +1,22 @@
 import pandas as pd
-from dalymi import Pipeline
+from dalymi import Pipeline, Resource
 
 pl = Pipeline(verbose_during_setup=True)
 
 
-@pl.io(output={'some_df': 'some_file.csv'})
+some_df = Resource('some_df', 'some_file.csv')
+final_df = Resource('final_df', 'final_file.csv')
+
+
+@pl.output(some_df)
 def first(**context):
-    return {'some_df': pd.DataFrame()}
+    return pd.DataFrame()
 
 
-@pl.io(input=['some_df'], output={'final_df': 'final_file.csv'})
+@pl.output(final_df)
+@pl.input(some_df)
 def second(some_df, **context):
-    return {'final_df': some_df}
+    return some_df
 
 
 if __name__ == '__main__':

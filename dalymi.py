@@ -7,108 +7,97 @@ import pandas as pd
 import numpy as np
 
 
+class Resource:
+
+    def __init__(self, name, loc, load=pd.read_csv, save=lambda df, path: df.to_csv(path), check=os.path.isfile):
+        self.name = name
+        self.loc = loc
+        self._load = load
+        self._save = save
+        self._check = check
+
+    def __repr__(self):
+        return self.name
+
+    def check(self, context):
+        path = self.loc.format(**context)
+        return self._check(path)
+
+    def load(self, context):
+        path = self.loc.format(**context)
+        return self._load(path)
+
+    def save(self, result, context):
+        path = self.loc.format(**context)
+        self._save(result, path)
+
+
 class Pipeline:
 
-    def __init__(self, load_resource=pd.read_csv, save_resource=lambda df, path: df.to_csv(path),
-                 check_resource=os.path.isfile, verbose_during_setup=False):
-        self.load_resource = load_resource
-        self.save_resource = save_resource
-        self.check_resource = check_resource
-        self.resources = {}
-        self.producers = {}
-        self.funcs = {}
+    def __init__(self, verbose_during_setup=False):
+        self.outputs = {}    # keys: funcs, values: list of output resources
+        self.producers = {}  # keys: resources, values: funcs
+        self.funcs = {}      # keys: func names, values: funcs
         self.verbose_during_setup = verbose_during_setup
 
-    def _create_io_wrapper(self, func, input, output):
-        '''
-        Creates a wrapped function of `func` which can be returned by the `io` decorator.
-        This is the core logic of DAG functions.
-
-        Args:
-            input (list): resource IDs
-            output (dict): a dictionary with resource IDs as keys and target templates as values.
-
-        Returns:
-            The wrapped version of `func`.
-        '''
-        name = func.__name__
+    def _create_input_wrapper(self, func, input):
 
         @wraps(func)
         def func_wrapped(**context):
-            self.log(f'Checking if outputs of function <{name}> exist.', context)
-            existing, missing = self.check_output(output, context)
-            if missing:
-                self.log(f'Missing outputs {missing} of function <{name}>.', context)
-            elif context['force']:
-                self.log(f'Force-running function <{name}>.', context)
-            else:
-                self.log(f'Skipping function <{name}>, because all outputs exist.', context)
-                return
-            existing, missing = self.check_input(input, context)
-            producers_missing = self.get_producers(missing)
-            if context['force_upstream']:
-                producers_all = self.get_producers(existing + missing)
-                producers_forced = set(producers_all) - set(producers_missing)
-                for producer in producers_forced:
-                    self.log(f'Enforcing producer <{producer.__name__}>.', context)
-                    producer(**context)
+            missing = [_ for _ in input if not _.check(context)]
+            producers_missing = [self.producers[_] for _ in missing]
             for producer in producers_missing:
                 self.log(f'Running producer <{producer.__name__}>.', context)
                 producer(**context)
-            self.log(f'Loading inputs {input}.', context)
-            input_dict = self.load_resources(input, context)
+            self.log(f'Loading inputs {list(input)}.', context)
+            input_dict = {_.name: _.load(context) for _ in input}
             kwargs = {**input_dict, **context}
-            self.log(f'Attempting to run function <{name}>.', context)
+            self.log(f'Attempting to run function <{func.__name__}>.', context)
             results = func(**kwargs)
-            self.log(f'Saving outputs of function <{name}>.', context)
-            self.save_results(results, context)
+            return results
 
         return func_wrapped
 
-    def check_input(self, input, context):
-        '''
-        Checks whether the specified input resources are available.
+    def _create_output_wrapper(self, func, output):
 
-        Args:
-            input (list): resource IDs
-            context (dict): the context
-
-        Returns:
-            existing (list): resource IDs with exisiting target
-            missing (list): resource IDs with missing target
-        '''
-        existing = []
-        missing = []
-        for resource in input:
-            fpath = self.resources[resource]
-            path = fpath.format(**context)
-            if self.check_resource(path):
-                existing.append(resource)
+        @wraps(func)
+        def func_wrapped(**context):
+            self.log(f'Checking if outputs of function <{func.__name__}> exist.', context)
+            missing = [_ for _ in output if not _.check(context)]
+            if missing:
+                self.log(f'Missing outputs {missing} of function <{func.__name__}>.', context)
+            elif context['force']:
+                self.log(f'Force-running function <{func.__name__}>.', context)
             else:
-                missing.append(resource)
-        return existing, missing
+                self.log(f'Skipping function <{func.__name__}>, because all outputs exist.', context)
+                return
+            results = func(**context)
+            if not isinstance(results, tuple):
+                results = (results,)
+            self.log(f'Saving outputs of function <{func.__name__}>.', context)
+            resources = self.outputs[func]
+            for resource, result in zip(resources, results):
+                resource.save(result, context)
+            return results
 
-    def check_output(self, output, context):
-        '''
-        Checks whether the specified output resources are available.
+        return func_wrapped
 
-        Args:
-            output (dict): a dictionary with resource IDs as keys and target templates as values.
-            context (dict): the context
+    def input(self, *input):
+        def decorator(func):
+            func_wrapped = self._create_input_wrapper(func, input)
+            return func_wrapped
+        return decorator
 
-        Returns:
-            existing (list): resource IDs with exisiting target
-            missing (list): resource IDs with missing target
-        '''
-        existing = []
-        missing = []
-        for resource, fpath in output.items():
-            path = fpath.format(**context)
-            if self.check_resource(path):
-                existing.append(resource)
-            else:
-                missing.append(resource)
-        return existing, missing
+    def output(self, *output):
+        def decorator(func):
+            func_wrapped = self._create_output_wrapper(func, output)
+            self.log(f'Registering {list(output)} as output of <{func.__name__}>', verbose=self.verbose_during_setup)
+            self.outputs[func] = output
+            for resource in output:
+                self.producers[resource] = func_wrapped
+            self.funcs[func.__name__] = func_wrapped
+            return func_wrapped
+        return decorator
 
     def cli(self):
         '''
@@ -116,42 +105,6 @@ class Pipeline:
         '''
         pipeline_cli = PipelineCLI(self)
         pipeline_cli.run()
-
-    def get_producers(self, resources):
-        '''
-        Returns the producers of the specified resources.
-
-        Args:
-            resources (list): resource IDs
-
-        Returns:
-            producers (list): function names of producers
-        '''
-        producers = []
-        for resource in resources:
-            producer = self.producers[resource]
-            producers.append(producer)
-        return producers
-
-    def io(self, input=[], output={}):
-        '''
-        A decorator to specify which input and output resources the decorated function produces.
-        Registers the function and output resources in the `Pipeline`.
-
-        Args:
-            input (list): a list of consumed resource IDs which are loaded and supplied to the decorated function as
-                          keyword arguments.
-            output (dict): a dictionary to specify which under which resource ID the function outputs should be
-                           registered (keys), and what their resource template is (values)
-
-        Returns:
-            The decorated function.
-        '''
-        def decorator(func):
-            func_wrapped = self._create_io_wrapper(func, input, output)
-            self.register_dag_func(func_wrapped, input, output)
-            return func_wrapped
-        return decorator
 
     def log(self, message, context={'verbose': False}, verbose=False):
         '''
@@ -163,48 +116,9 @@ class Pipeline:
         if verbose or context['verbose']:
             print(message)
 
-    def load_resources(self, resources, context):
-        '''
-        Loads resources into memory.
-
-        Args:
-            resources (list): a list of resource IDs
-            context (dict): the context
-
-        Returns:
-            resources (dict): a dictionary of resources with IDs as keys and data frames as values
-        '''
-        resources_dict = {}
-        for resource in resources:
-            fpath = self.resources[resource]
-            path = fpath.format(**context)
-            self.log(f'Loading resource <{resource}>.', context)
-            resources_dict[resource] = self.load_resource(path)
-        return resources_dict
-
-    def register_dag_func(self, func, input, output):
-        '''
-        Stores relevant information for the DAG of the given function.
-
-        Args:
-            func (callable): the function to be registered
-            input (list): resource IDs of function input
-            output (list): resource IDs of function output
-        '''
-        name = func.__name__
-        self.log(f'Registering function <{name}> as DAG function.', verbose=self.verbose_during_setup)
-        self.funcs[name] = func
-        if output:
-            self.log(f'Registerung function <{name}> as producer of {list(output.keys())}.', verbose=self.verbose_during_setup)
-            for resource in output:
-                self.producers[resource] = func
-            self.log(f'Registering resources {output} of function <{name}>.', verbose=self.verbose_during_setup)
-            self.resources.update(output)
-
-    def run(self, task=None, force=False, force_upstream=False, verbose=False, **context):
+    def run(self, task=None, force=False, verbose=False, **context):
         context['task'] = task
         context['force'] = force
-        context['force_upstream'] = force_upstream
         context['verbose'] = verbose
         pretty_context = pprint.pformat(context)
         pretty_indented_context = '\n'.join(['  ' + _ for _ in pretty_context.split('\n')])
@@ -214,16 +128,9 @@ class Pipeline:
             task(**context)
         else:
             self.log('Auto-running DAG.', context)
-            for name, func in self.funcs.items():
-                self.log(f'Attemping function <{name}>.', context)
+            for func in self.funcs.values():
+                self.log(f'Attempting function <{func.__name__}>.', context)
                 func(**context)
-
-    def save_results(self, results, context):
-        for resource, result in results.items():
-            fpath = self.resources[resource]
-            path = fpath.format(**context)
-            self.log(f'Saving resource <{resource}> at <{path}>.', context)
-            self.save_resource(result, path)
 
 
 class PipelineCLI(argparse.ArgumentParser):
@@ -233,9 +140,7 @@ class PipelineCLI(argparse.ArgumentParser):
         self.pipeline = pipeline
         self.add_argument('-t', '--task', help='run a specific task')
         self.add_argument('-f', '--force', action='store_true',
-                          help='force tasks to run even if they already have output')
-        self.add_argument('-u', '--force-upstream', action='store_true',
-                          help='force-run upstream dependencies of any attempted task')
+                          help='force task to run even if its output already exists')
         self.add_argument('-v', '--verbose', action='store_true', help='be verbose about pipeline internals')
 
     def run(self, context={}):
