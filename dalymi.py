@@ -102,6 +102,10 @@ class Pipeline:
     def input(self, *input):
         def decorator(func):
             func_wrapped = self._create_input_wrapper(func, input)
+            self.log(f'Registering <{func.__name__}> as a consumer function.', verbose=self.verbose_during_setup)
+            # just in case we don't have ouput. If we do, this will be overwritten, becasue the output decorator
+            # has to wrap the input decorator:
+            self.funcs[func.__name__] = func_wrapped
             return func_wrapped
         return decorator
 
@@ -112,6 +116,7 @@ class Pipeline:
             self.outputs[func] = output
             for resource in output:
                 self.producers[resource] = func_wrapped
+            self.log(f'Registering <{func.__name__}> as producer function.', verbose=self.verbose_during_setup)
             self.funcs[func.__name__] = func_wrapped
             return func_wrapped
         return decorator
