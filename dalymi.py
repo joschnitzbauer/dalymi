@@ -10,16 +10,22 @@ import numpy as np
 class Resource:
 
     def __init__(self, name, loc, load=pd.read_csv, save=lambda df, path: df.to_csv(path), check=os.path.isfile,
-                 columns=None):
+                 columns=None, custom_assertions=[]):
         self.name = name
         self.loc = loc
         self._load = load
         self._save = save
         self._check = check
         self.columns = columns
+        self.custom_assertions = custom_assertions
 
     def __repr__(self):
         return self.name
+
+    def assert_integrity(self, df):
+        self.assert_columns(df)
+        for custom_assertion in self.custom_assertions:
+            custom_assertion(df)
 
     def assert_columns(self, df):
         if self.columns is not None:
@@ -34,11 +40,11 @@ class Resource:
     def load(self, context):
         path = self.loc.format(**context)
         df = self._load(path)
-        self.assert_columns(df)
+        self.assert_integrity(df)
         return df
 
     def save(self, df, context):
-        self.assert_columns(df)
+        self.assert_integrity(df)
         path = self.loc.format(**context)
         self._save(df, path)
 
