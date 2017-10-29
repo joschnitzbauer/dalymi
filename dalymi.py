@@ -44,13 +44,13 @@ class Resource:
 class DataFrameResource(Resource):
 
     def __init__(self, name, loc, load=pd.read_csv, save=lambda df, path: df.to_csv(path), check=os.path.isfile,
-                 columns=None, custom_assertions=[]):
+                 columns=[], custom_assertions=[]):
         assertions = [self.assert_columns] + custom_assertions
         super().__init__(name, loc, load, save, check, assertions=assertions)
         self.columns = columns
 
     def assert_columns(self, df):
-        if self.columns is not None:
+        if self.columns:
             assert set(df.columns) == set(self.columns), \
                 f'Columns of resource <{self.name}> do not match expected. ' \
                 + f'Present: {set(df.columns)}. Expected: {set(self.columns)}.'
@@ -76,6 +76,7 @@ class Pipeline:
         self.outputs = {}    # keys: funcs, values: list of output resources
         self.producers = {}  # keys: resources, values: funcs
         self.funcs = {}      # keys: func names, values: funcs
+        self.consumers = []  # list of (resource name, func name)
         self.verbose_during_setup = verbose_during_setup
 
     def _create_input_wrapper(self, func, input):
@@ -124,7 +125,8 @@ class Pipeline:
         def decorator(func):
             func_wrapped = self._create_input_wrapper(func, input)
             self.log(f'Registering <{func.__name__}> as a consumer function.', verbose=self.verbose_during_setup)
-            # just in case we don't have ouput. If we do, this will be overwritten, becasue the output decorator
+            self.consumers.extend([(_.name, func.__name__) for _ in input])
+            # just in case we don't have ouput. If we do, this will be overwritten, because the output decorator
             # has to wrap the input decorator:
             self.funcs[func.__name__] = func_wrapped
             return func_wrapped
@@ -158,6 +160,24 @@ class Pipeline:
         '''
         if verbose or context['verbose']:
             print(message)
+
+    def plot(self, **kwargs):
+        from graphviz import Digraph
+        graph = Digraph('pipeline')
+        for func in self.funcs:
+            graph.node(func, fontname='"Lucida Console", Monaco, Consolas, monospace bold', fontsize='11')
+        for resource, func in self.producers.items():
+            table = '<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">'
+            table += f'<TR><TD><B>{resource.name}</B></TD></TR>'
+            if hasattr(resource, 'columns'):
+                for column in resource.columns:
+                    table += f'<TR><TD>{column}</TD></TR>'
+            table += '</TABLE>>'
+            graph.node(resource.name, shape='none', label=table, width='0', height='0', margin='0',
+                       fontname='"Lucida Console", Monaco, Consolas, monospace', fontsize='11')
+            graph.edge(func.__name__, resource.name)
+        graph.edges(self.consumers)
+        graph.render(**kwargs)
 
     def run(self, task=None, force=False, verbose=False, **context):
         context['task'] = task
