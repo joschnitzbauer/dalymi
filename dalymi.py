@@ -196,20 +196,32 @@ class Pipeline:
                 func(**context)
 
 
-class PipelineCLI(argparse.ArgumentParser):
+class PipelineCLI():
 
     def __init__(self, pipeline):
-        super().__init__()
         self.pipeline = pipeline
-        self.add_argument('-t', '--task', help='run a specific task')
-        self.add_argument('-f', '--force', action='store_true',
-                          help='force task to run even if its output already exists')
-        self.add_argument('-v', '--verbose', action='store_true', help='be verbose about pipeline internals')
+
+        self.parser = argparse.ArgumentParser()
+        self.subparsers = self.parser.add_subparsers(dest='command')
+
+        self.run_parser = self.subparsers.add_parser('run', help='run the pipeline')
+        self.run_parser.add_argument('-t', '--task', help='run a specific task')
+        self.run_parser.add_argument('-f', '--force', action='store_true',
+                                     help='force task to run even if its output already exists')
+        self.run_parser.add_argument('-v', '--verbose', action='store_true', help='be verbose about pipeline internals')
+
+        self.plot_parser = self.subparsers.add_parser('plot', help='plot the DAG')
 
     def run(self, context={}):
-        args = self.parse_args()
-        context = {**vars(args), **context}
-        self.pipeline.run(**context)
+        args = self.parser.parse_args()
+        if args.command:
+            if args.command == 'run':
+                context = {**vars(args), **context}
+                self.pipeline.run(**context)
+            elif args.command == 'plot':
+                self.pipeline.plot()
+            else:
+                self.print_help()
 
 
 def _assert_resources_uniqueness(resources, keys):
