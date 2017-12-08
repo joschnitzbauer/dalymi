@@ -1,11 +1,11 @@
 import pandas as pd
-from dalymi import Pipeline, Resource
+from dalymi import Pipeline, PandasDataFrameResource
 
 pl = Pipeline(verbose_during_setup=True)
 
 
-some_df = Resource('some_df', 'some_file.csv')
-final_df = Resource('final_df', 'final_file.csv')
+some_df = PandasDataFrameResource('some_df', 'some_file.csv')
+final_df = PandasDataFrameResource('final_df', 'final_file.csv')
 
 
 @pl.output(some_df)

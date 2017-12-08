@@ -10,16 +10,13 @@ import numpy as np
 
 class Resource:
 
-    def __init__(self, name, loc, load, save, check, assertions=[]):
+    def __init__(self, name=None, loc=None, load=None, save=None, check=None, assertions=[]):
         self.name = name
         self.loc = loc
         self._load = load
         self._save = save
         self._check = check
         self.assertions = assertions
-
-    def __repr__(self):
-        return self.name
 
     def assert_integrity(self, data):
         for assertion in self.assertions:
@@ -41,9 +38,9 @@ class Resource:
         self._save(data, path)
 
 
-class DataFrameResource(Resource):
+class PandasDataFrameResource(Resource):
 
-    def __init__(self, name, loc, load=pd.read_csv, save=lambda df, path: df.to_csv(path), check=os.path.isfile,
+    def __init__(self, name=None, loc=None, load=pd.read_csv, save=lambda df, path: df.to_csv(path), check=os.path.isfile,
                  columns=[], custom_assertions=[]):
         assertions = [self.assert_columns] + custom_assertions
         super().__init__(name, loc, load, save, check, assertions=assertions)
@@ -58,7 +55,7 @@ class DataFrameResource(Resource):
 
 class PickleResource(Resource):
 
-    def __init__(self, name, loc, custom_assertions=[]):
+    def __init__(self, name=None, loc=None, custom_assertions=[]):
         super().__init__(name, loc, self._load, self._save, os.path.isfile, assertions=custom_assertions)
 
     def _load(self, path):
