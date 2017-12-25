@@ -10,13 +10,16 @@ import numpy as np
 
 class Resource:
 
-    def __init__(self, name=None, loc=None, load=None, save=None, check=None, assertions=[]):
+    def __init__(self, name=None, loc=None, load=None, save=None, check=None, delete=None, assertions=[],
+                 ignore_delete_exception=None):
         self.name = name
         self.loc = loc
         self._load = load
         self._save = save
         self._check = check
+        self._delete = delete
         self.assertions = assertions
+        self.ignore_delete_exception = ignore_delete_exception
 
     def assert_integrity(self, data):
         for assertion in self.assertions:
@@ -25,6 +28,16 @@ class Resource:
     def check(self, context):
         path = self.loc.format(**context)
         return self._check(path)
+
+    def delete(self, context):
+        path = self.loc.format(**context)
+        if self.ignore_delete_exception is not None:
+            try:
+                self._delete(path)
+            except self.ignore_delete_exception:
+                pass
+        else:
+            self._delete(path)
 
     def load(self, context):
         path = self.loc.format(**context)
@@ -41,9 +54,9 @@ class Resource:
 class PandasDataFrameResource(Resource):
 
     def __init__(self, name=None, loc=None, load=pd.read_csv, save=lambda df, path: df.to_csv(path), check=os.path.isfile,
-                 columns=[], custom_assertions=[]):
+                 delete=os.remove, columns=[], custom_assertions=[], ignore_delete_exception=FileNotFoundError):
         assertions = [self.assert_columns] + custom_assertions
-        super().__init__(name, loc, load, save, check, assertions=assertions)
+        super().__init__(name, loc, load, save, check, delete, assertions=assertions, ignore_delete_exception=ignore_delete_exception)
         self.columns = columns
 
     def assert_columns(self, df):
@@ -71,9 +84,10 @@ class Pipeline:
 
     def __init__(self, verbose_during_setup=False):
         self.outputs = {}    # keys: funcs, values: list of output resources
-        self.producers = {}  # keys: resources, values: funcs
-        self.funcs = {}      # keys: func names, values: funcs
+        self.producers = {}  # keys: resources, values: funcs_wrapped
+        self.funcs = {}      # keys: func names, values: funcs_wrapped
         self.consumers = []  # list of (resource name, func name)
+        self.original_funcs = {}  # keys: funcs_wrapped, values: funcs
         self.verbose_during_setup = verbose_during_setup
 
     def _create_input_wrapper(self, func, input):
@@ -85,7 +99,7 @@ class Pipeline:
             for producer in producers_missing:
                 self.log(f'Running producer <{producer.__name__}>.', context)
                 producer(**context)
-            self.log(f'Loading inputs {list(input)}.', context)
+            self.log(f'Loading inputs {[_.name for _ in input]}.', context)
             input_dict = {_.name: _.load(context) for _ in input}
             kwargs = {**input_dict, **context}
             self.log(f'Attempting to run function <{func.__name__}>.', context)
@@ -101,7 +115,7 @@ class Pipeline:
             self.log(f'Checking if outputs of function <{func.__name__}> exist.', context)
             missing = [_ for _ in output if not _.check(context)]
             if missing:
-                self.log(f'Missing outputs {missing} of function <{func.__name__}>.', context)
+                self.log(f'Missing outputs {[_.name for _ in missing]} of function <{func.__name__}>.', context)
             else:
                 self.log(f'Skipping function <{func.__name__}>, because all outputs exist.', context)
                 return
@@ -130,12 +144,13 @@ class Pipeline:
     def output(self, *output):
         def decorator(func):
             func_wrapped = self._create_output_wrapper(func, output)
-            self.log(f'Registering {list(output)} as output of <{func.__name__}>', verbose=self.verbose_during_setup)
+            self.log(f'Registering {[_.name for _ in output]} as output of <{func.__name__}>', verbose=self.verbose_during_setup)
             self.outputs[func] = output
             for resource in output:
                 self.producers[resource] = func_wrapped
             self.log(f'Registering <{func.__name__}> as producer function.', verbose=self.verbose_during_setup)
             self.funcs[func.__name__] = func_wrapped
+            self.original_funcs[func_wrapped] = func
             return func_wrapped
         return decorator
 
@@ -182,13 +197,35 @@ class Pipeline:
         pretty_indented_context = '\n'.join(['  ' + _ for _ in pretty_context.split('\n')])
         self.log('Running with context:\n' + pretty_indented_context, context)
         if task:
-            task = self.funcs[task]
-            task(**context)
+            func = self.funcs[task]
+            func(**context)
         else:
             self.log('Auto-running DAG.', context)
             for func in self.funcs.values():
                 self.log(f'Attempting function <{func.__name__}>.', context)
                 func(**context)
+
+    def delete_output(self, func, context):
+        original_func = self.original_funcs[func]
+        func_outputs = self.outputs[original_func]
+        for output in func_outputs:
+            self.log(f'Deleting <{output.name}> at \'{output.loc}\'.', context)
+            output.delete(context)
+
+    def undo(self, task=None, execution_date=pd.Timestamp('today').date(), verbose=False, **context):
+        context['task'] = task
+        context['execution_date'] = execution_date
+        context['verbose'] = verbose
+        pretty_context = pprint.pformat(context)
+        pretty_indented_context = '\n'.join(['  ' + _ for _ in pretty_context.split('\n')])
+        self.log('Undoing with context:\n' + pretty_indented_context, context)
+        if task:
+            func = self.funcs[task]
+            self.delete_output(func, context)
+        else:
+            self.log('Undoing DAG run.', context)
+            for func in self.funcs.values():
+                self.delete_output(func, context)
 
 
 class PipelineCLI():
@@ -200,7 +237,7 @@ class PipelineCLI():
         self.subparsers = self.parser.add_subparsers(dest='command')
 
         self.run_parser = self.subparsers.add_parser('run', help='run the pipeline')
-        self.run_parser.add_argument('-t', '--task', help='run a specific task')
+        self.run_parser.add_argument('-t', '--task', help='run/undo a specific task')
         self.run_parser.add_argument('-e', '--execution-date', default=pd.Timestamp('today').date(),
                                      type=lambda x: pd.to_datetime(x).date(), help='the date of execution')
         self.run_parser.add_argument('-v', '--verbose', action='store_true', help='be verbose about pipeline internals')
@@ -208,15 +245,18 @@ class PipelineCLI():
         self.plot_parser = self.subparsers.add_parser('plot', help='plot the DAG')
 
     def run(self, context={}):
+        undo_parser = self.subparsers.add_parser('undo', parents=[self.run_parser], add_help=False, description='undo tasks')
+        undo_parser.add_argument('-d', '--downstream', help='undo downstream tasks')
         args = self.parser.parse_args()
-        if args.command:
-            if args.command == 'run':
-                context = {**vars(args), **context}
-                self.pipeline.run(**context)
-            elif args.command == 'plot':
-                self.pipeline.plot()
-            else:
-                self.print_help()
+        context = {**vars(args), **context}
+        if args.command == 'run':
+            self.pipeline.run(**context)
+        elif args.command == 'undo':
+            self.pipeline.undo(**context)
+        elif args.command == 'plot':
+            self.pipeline.plot()
+        else:
+            self.parser.print_help()
 
 
 def _assert_resources_uniqueness(resources, keys):
