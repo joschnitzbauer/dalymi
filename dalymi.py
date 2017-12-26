@@ -1,5 +1,6 @@
 import argparse
 from functools import wraps
+import itertools
 import os.path
 import pprint
 import pickle
@@ -205,19 +206,27 @@ class Pipeline:
                 self.log(f'Attempting function <{func.__name__}>.', context)
                 func(**context)
 
-    def delete_output(self, func, context, downstream=False):
+    def get_downstream_tasks(self, task):
+        func = self.funcs[task]
         original_func = self.original_funcs[func]
         func_outputs = self.outputs[original_func]
         consumers = set()
         for output in func_outputs:
-            self.log(f'Deleting <{output.name}> at \'{output.loc}\'.', context)
-            output.delete(context)
             output_consumers = [fn for rn, fn in self.consumers if rn == output.name]
             consumers.update(output_consumers)
-        if downstream:
-            for consumer in consumers:
-                consumer_func = self.funcs[consumer]
-                self.delete_output(consumer_func, context, downstream=downstream)
+            for consumer in output_consumers:
+                consumer_consumers = self.get_downstream_tasks(consumer)
+                consumers.update(consumer_consumers)
+        return consumers
+
+    def delete_output(self, tasks, context):
+        funcs = [self.funcs[_] for _ in tasks]
+        original_funcs = [self.original_funcs[_] for _ in funcs]
+        funcs_outputs = [self.outputs[_] for _ in original_funcs]
+        outputs = set(itertools.chain(*funcs_outputs))
+        for output in outputs:
+            self.log(f'Deleting <{output.name}> at \'{output.loc}\'.', context)
+            output.delete(context)
 
     def undo(self, task=None, execution_date=pd.Timestamp('today').date(), downstream=False, verbose=False, **context):
         context['task'] = task
@@ -227,13 +236,15 @@ class Pipeline:
         pretty_context = pprint.pformat(context)
         pretty_indented_context = '\n'.join(['  ' + _ for _ in pretty_context.split('\n')])
         self.log('Undoing with context:\n' + pretty_indented_context, context)
-        if task:
-            func = self.funcs[task]
-            self.delete_output(func, context, downstream=downstream)
+        if task and downstream:
+            tasks_to_undo = self.get_downstream_tasks(task)
+            tasks_to_undo.add(task)
+        elif task and not downstream:
+            tasks_to_undo = [task]
         else:
-            self.log('Undoing DAG run.', context)
-            for func in self.funcs.values():
-                self.delete_output(func, context)
+            tasks_to_undo = self.funcs.keys()
+        self.log(f'Undoing tasks {list(tasks_to_undo)}.', context)
+        self.delete_output(tasks_to_undo, context)
 
 
 class PipelineCLI():
