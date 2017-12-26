@@ -205,23 +205,31 @@ class Pipeline:
                 self.log(f'Attempting function <{func.__name__}>.', context)
                 func(**context)
 
-    def delete_output(self, func, context):
+    def delete_output(self, func, context, downstream=False):
         original_func = self.original_funcs[func]
         func_outputs = self.outputs[original_func]
+        consumers = set()
         for output in func_outputs:
             self.log(f'Deleting <{output.name}> at \'{output.loc}\'.', context)
             output.delete(context)
+            output_consumers = [fn for rn, fn in self.consumers if rn == output.name]
+            consumers.update(output_consumers)
+        if downstream:
+            for consumer in consumers:
+                consumer_func = self.funcs[consumer]
+                self.delete_output(consumer_func, context, downstream=downstream)
 
-    def undo(self, task=None, execution_date=pd.Timestamp('today').date(), verbose=False, **context):
+    def undo(self, task=None, execution_date=pd.Timestamp('today').date(), downstream=False, verbose=False, **context):
         context['task'] = task
         context['execution_date'] = execution_date
+        context['downstream'] = downstream
         context['verbose'] = verbose
         pretty_context = pprint.pformat(context)
         pretty_indented_context = '\n'.join(['  ' + _ for _ in pretty_context.split('\n')])
         self.log('Undoing with context:\n' + pretty_indented_context, context)
         if task:
             func = self.funcs[task]
-            self.delete_output(func, context)
+            self.delete_output(func, context, downstream=downstream)
         else:
             self.log('Undoing DAG run.', context)
             for func in self.funcs.values():
@@ -246,7 +254,7 @@ class PipelineCLI():
 
     def run(self, context={}):
         undo_parser = self.subparsers.add_parser('undo', parents=[self.run_parser], add_help=False, description='undo tasks')
-        undo_parser.add_argument('-d', '--downstream', help='undo downstream tasks')
+        undo_parser.add_argument('-d', '--downstream', action='store_true', help='undo downstream tasks')
         args = self.parser.parse_args()
         context = {**vars(args), **context}
         if args.command == 'run':
