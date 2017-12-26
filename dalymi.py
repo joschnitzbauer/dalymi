@@ -70,7 +70,7 @@ class PandasDataFrameResource(Resource):
 class PickleResource(Resource):
 
     def __init__(self, name=None, loc=None, custom_assertions=[]):
-        super().__init__(name, loc, self._load, self._save, os.path.isfile, assertions=custom_assertions)
+        super().__init__(name, loc, self._load, self._save, os.path.isfile, self._delete, assertions=custom_assertions, ignore_delete_exception=FileNotFoundError)
 
     def _load(self, path):
         with open(path, 'rb') as f:
@@ -79,6 +79,9 @@ class PickleResource(Resource):
     def _save(self, data, path):
         with open(path, 'wb') as f:
             pickle.dump(data, f)
+
+    def _delete(self, path):
+        os.remove(path)
 
 
 class Pipeline:
@@ -139,6 +142,7 @@ class Pipeline:
             # just in case we don't have ouput. If we do, this will be overwritten, because the output decorator
             # has to wrap the input decorator:
             self.funcs[func.__name__] = func_wrapped
+            self.original_funcs[func_wrapped] = func
             return func_wrapped
         return decorator
 
@@ -209,7 +213,10 @@ class Pipeline:
     def get_downstream_tasks(self, task):
         func = self.funcs[task]
         original_func = self.original_funcs[func]
-        func_outputs = self.outputs[original_func]
+        if original_func in self.outputs:
+            func_outputs = self.outputs[original_func]
+        else:
+            func_outputs = []
         consumers = set()
         for output in func_outputs:
             output_consumers = [fn for rn, fn in self.consumers if rn == output.name]
@@ -222,10 +229,11 @@ class Pipeline:
     def delete_output(self, tasks, context):
         funcs = [self.funcs[_] for _ in tasks]
         original_funcs = [self.original_funcs[_] for _ in funcs]
-        funcs_outputs = [self.outputs[_] for _ in original_funcs]
+        funcs_outputs = [self.outputs[_] for _ in original_funcs if _ in self.outputs]
         outputs = set(itertools.chain(*funcs_outputs))
         for output in outputs:
-            self.log(f'Deleting <{output.name}> at \'{output.loc}\'.', context)
+            loc = output.loc.format(**context)
+            self.log(f'Deleting <{output.name}> at \'{loc}\'.', context)
             output.delete(context)
 
     def undo(self, task=None, execution_date=pd.Timestamp('today').date(), downstream=False, verbose=False, **context):
