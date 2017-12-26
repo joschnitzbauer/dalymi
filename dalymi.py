@@ -11,8 +11,7 @@ import numpy as np
 
 class Resource:
 
-    def __init__(self, name=None, loc=None, load=None, save=None, check=None, delete=None, assertions=[],
-                 ignore_delete_exception=None):
+    def __init__(self, name=None, loc=None, load=None, save=None, check=None, delete=None, assertions=[]):
         self.name = name
         self.loc = loc
         self._load = load
@@ -20,7 +19,6 @@ class Resource:
         self._check = check
         self._delete = delete
         self.assertions = assertions
-        self.ignore_delete_exception = ignore_delete_exception
 
     def assert_integrity(self, data):
         for assertion in self.assertions:
@@ -32,13 +30,7 @@ class Resource:
 
     def delete(self, context):
         path = self.loc.format(**context)
-        if self.ignore_delete_exception is not None:
-            try:
-                self._delete(path)
-            except self.ignore_delete_exception:
-                pass
-        else:
-            self._delete(path)
+        self._delete(path)
 
     def load(self, context):
         path = self.loc.format(**context)
@@ -55,9 +47,9 @@ class Resource:
 class PandasDataFrameResource(Resource):
 
     def __init__(self, name=None, loc=None, load=pd.read_csv, save=lambda df, path: df.to_csv(path), check=os.path.isfile,
-                 delete=os.remove, columns=[], custom_assertions=[], ignore_delete_exception=FileNotFoundError):
+                 delete=os.remove, columns=[], custom_assertions=[]):
         assertions = [self.assert_columns] + custom_assertions
-        super().__init__(name, loc, load, save, check, delete, assertions=assertions, ignore_delete_exception=ignore_delete_exception)
+        super().__init__(name, loc, load, save, check, delete, assertions=assertions)
         self.columns = columns
 
     def assert_columns(self, df):
@@ -70,7 +62,7 @@ class PandasDataFrameResource(Resource):
 class PickleResource(Resource):
 
     def __init__(self, name=None, loc=None, custom_assertions=[]):
-        super().__init__(name, loc, self._load, self._save, os.path.isfile, self._delete, assertions=custom_assertions, ignore_delete_exception=FileNotFoundError)
+        super().__init__(name, loc, self._load, self._save, os.path.isfile, self._delete, assertions=custom_assertions)
 
     def _load(self, path):
         with open(path, 'rb') as f:
@@ -232,9 +224,10 @@ class Pipeline:
         funcs_outputs = [self.outputs[_] for _ in original_funcs if _ in self.outputs]
         outputs = set(itertools.chain(*funcs_outputs))
         for output in outputs:
-            loc = output.loc.format(**context)
-            self.log(f'Deleting <{output.name}> at \'{loc}\'.', context)
-            output.delete(context)
+            if output.check(context):
+                loc = output.loc.format(**context)
+                self.log(f'Deleting <{output.name}> at \'{loc}\'.', context)
+                output.delete(context)
 
     def undo(self, task=None, execution_date=pd.Timestamp('today').date(), downstream=False, verbose=False, **context):
         context['task'] = task
