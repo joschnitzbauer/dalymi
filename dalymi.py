@@ -11,69 +11,76 @@ import numpy as np
 
 class Resource:
 
-    def __init__(self, name=None, loc=None, load=None, save=None, check=None, delete=None, assertions=[]):
+    def __init__(self, name=None, loc=None, assertions=[]):
         self.name = name
         self.loc = loc
-        self._load = load
-        self._save = save
-        self._check = check
-        self._delete = delete
         self.assertions = assertions
 
     def assert_integrity(self, data):
         for assertion in self.assertions:
             assertion(data)
 
-    def check(self, context):
+    def _check(self, context):
         path = self.loc.format(**context)
-        return self._check(path)
+        return self.check(path)
 
-    def delete(self, context):
+    def _delete(self, context):
         path = self.loc.format(**context)
-        self._delete(path)
+        self.delete(path)
 
-    def load(self, context):
+    def _load(self, context):
         path = self.loc.format(**context)
-        data = self._load(path)
+        data = self.load(path)
         self.assert_integrity(data)
         return data
 
-    def save(self, data, context):
+    def _save(self, data, context):
         self.assert_integrity(data)
         path = self.loc.format(**context)
-        self._save(data, path)
+        self.save(path, data)
 
 
-class PandasDataFrameResource(Resource):
+class LocalFileResource(Resource):
 
-    def __init__(self, name=None, loc=None, load=pd.read_csv, save=lambda df, path: df.to_csv(path), check=os.path.isfile,
-                 delete=os.remove, columns=[], custom_assertions=[]):
+    def check(self, path):
+        return os.path.isfile(path)
+
+    def delete(self, path):
+        return os.remove(path)
+
+
+class PandasDFResource(LocalFileResource):
+
+    def __init__(self, name=None, loc=None, columns=None, custom_assertions=[]):
         assertions = [self.assert_columns] + custom_assertions
-        super().__init__(name, loc, load, save, check, delete, assertions=assertions)
+        super().__init__(name, loc, assertions=assertions)
         self.columns = columns
 
     def assert_columns(self, df):
-        if self.columns:
+        if self.columns is not None:
             assert set(df.columns) == set(self.columns), \
                 f'Columns of resource <{self.name}> do not match expected. ' \
                 + f'Present: {set(df.columns)}. Expected: {set(self.columns)}.'
 
+    def load(self, path):
+        return pd.read_csv(path)
 
-class PickleResource(Resource):
+    def save(self, path, data):
+        return data.to_csv(path, index=False)
+
+
+class PickleResource(LocalFileResource):
 
     def __init__(self, name=None, loc=None, custom_assertions=[]):
-        super().__init__(name, loc, self._load, self._save, os.path.isfile, self._delete, assertions=custom_assertions)
+        super().__init__(name, loc, assertions=custom_assertions)
 
-    def _load(self, path):
+    def load(self, path):
         with open(path, 'rb') as f:
             return pickle.load(f)
 
-    def _save(self, data, path):
+    def save(self, path, data):
         with open(path, 'wb') as f:
             pickle.dump(data, f)
-
-    def _delete(self, path):
-        os.remove(path)
 
 
 class Pipeline:
@@ -90,13 +97,13 @@ class Pipeline:
 
         @wraps(func)
         def func_wrapped(**context):
-            missing = [_ for _ in input if not _.check(context)]
+            missing = [_ for _ in input if not _._check(context)]
             producers_missing = [self.producers[_] for _ in missing]
             for producer in producers_missing:
                 self.log(f'Running producer <{producer.__name__}>.', context)
                 producer(**context)
             self.log(f'Loading inputs {[_.name for _ in input]}.', context)
-            input_dict = {_.name: _.load(context) for _ in input}
+            input_dict = {_.name: _._load(context) for _ in input}
             kwargs = {**input_dict, **context}
             self.log(f'Attempting to run function <{func.__name__}>.', context)
             results = func(**kwargs)
@@ -109,7 +116,7 @@ class Pipeline:
         @wraps(func)
         def func_wrapped(**context):
             self.log(f'Checking if outputs of function <{func.__name__}> exist.', context)
-            missing = [_ for _ in output if not _.check(context)]
+            missing = [_ for _ in output if not _._check(context)]
             if missing:
                 self.log(f'Missing outputs {[_.name for _ in missing]} of function <{func.__name__}>.', context)
             else:
@@ -121,7 +128,7 @@ class Pipeline:
             self.log(f'Saving outputs of function <{func.__name__}>.', context)
             resources = self.outputs[func]
             for resource, result in zip(resources, results):
-                resource.save(result, context)
+                resource._save(result, context)
             return results
 
         return func_wrapped
@@ -224,10 +231,10 @@ class Pipeline:
         funcs_outputs = [self.outputs[_] for _ in original_funcs if _ in self.outputs]
         outputs = set(itertools.chain(*funcs_outputs))
         for output in outputs:
-            if output.check(context):
+            if output._check(context):
                 loc = output.loc.format(**context)
                 self.log(f'Deleting <{output.name}> at \'{loc}\'.', context)
-                output.delete(context)
+                output._delete(context)
 
     def undo(self, task=None, execution_date=pd.Timestamp('today').date(), downstream=False, verbose=False, **context):
         context['task'] = task

@@ -1,22 +1,22 @@
 import pandas as pd
-from dalymi import Pipeline, PandasDataFrameResource
+from dalymi import Pipeline, PandasDFResource
 
 pl = Pipeline(verbose_during_setup=True)
 
 
-some_df = PandasDataFrameResource('some_df', 'some_file.csv')
-final_df = PandasDataFrameResource('final_df', 'final_file.csv')
+first_df = PandasDFResource('first_df', 'first_df.csv')
+second_df = PandasDFResource('second_df', 'second_df.csv')
 
 
-@pl.output(some_df)
+@pl.output(first_df)
 def first(**context):
-    return pd.DataFrame()
+    return pd.DataFrame({'a': range(5)})
 
 
-@pl.output(final_df)
-@pl.input(some_df)
-def second(some_df, **context):
-    return some_df
+@pl.output(second_df)
+@pl.input(first_df)
+def second(first_df, **context):
+    return first_df
 
 
 if __name__ == '__main__':
