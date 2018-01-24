@@ -4,12 +4,11 @@ import pickle
 import pandas as pd
 
 
-class Resource:
+class PipelineResource:
 
-    def __init__(self, name=None, loc=None, assertions=[]):
+    def __init__(self, name=None, loc=None):
         self.name = name
         self.loc = loc
-        self.assertions = assertions
 
     def _check(self, context):
         path = self.loc.format(**context)
@@ -30,12 +29,18 @@ class Resource:
         path = self.loc.format(**context)
         self.save(path, data)
 
+
+class AssertedResource:
+
+    def __init__(self, assertions=[]):
+        self.assertions = assertions
+
     def assert_integrity(self, data):
         for assertion in self.assertions:
             assertion(data)
 
 
-class LocalFile(Resource):
+class LocalFileMixin:
 
     def check(self, path):
         return os.path.isfile(path)
@@ -44,11 +49,11 @@ class LocalFile(Resource):
         return os.remove(path)
 
 
-class PandasCSV(LocalFile):
+class PandasDF(AssertedResource):
 
-    def __init__(self, name=None, loc=None, columns=[], custom_assertions=[]):
+    def __init__(self, columns=[], custom_assertions=[]):
         assertions = [self.assert_columns] + custom_assertions
-        super().__init__(name, loc, assertions=assertions)
+        super().__init__(assertions=assertions)
         self.columns = columns
 
     def assert_columns(self, df):
@@ -57,6 +62,13 @@ class PandasCSV(LocalFile):
                 f'Columns of resource <{self.name}> do not match expected. ' \
                 + f'Present: {set(df.columns)}. Expected: {set(self.columns)}.'
 
+
+class PandasCSV(PandasDF, PipelineResource, LocalFileMixin):
+
+    def __init__(self, name, loc, columns=[], custom_assertions=[]):
+        PandasDF.__init__(self, columns, custom_assertions)
+        PipelineResource.__init__(self, name=name, loc=loc)
+
     def load(self, path):
         return pd.read_csv(path)
 
@@ -64,10 +76,11 @@ class PandasCSV(LocalFile):
         return data.to_csv(path, index=False)
 
 
-class PickleResource(LocalFile):
+class Pickle(AssertedResource, PipelineResource, LocalFileMixin):
 
-    def __init__(self, name=None, loc=None, custom_assertions=[]):
-        super().__init__(name, loc, assertions=custom_assertions)
+    def __init__(self, name, loc, custom_assertions=[]):
+        AssertedResource.__init__(self, assertions=custom_assertions)
+        PipelineResource.__init__(self, name=name, loc=loc)
 
     def load(self, path):
         with open(path, 'rb') as f:
