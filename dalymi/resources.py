@@ -35,7 +35,7 @@ class Resource:
             assertion(data)
 
 
-class LocalFileResource(Resource):
+class LocalFile(Resource):
 
     def check(self, path):
         return os.path.isfile(path)
@@ -44,7 +44,7 @@ class LocalFileResource(Resource):
         return os.remove(path)
 
 
-class PandasDFResource(LocalFileResource):
+class PandasCSV(LocalFile):
 
     def __init__(self, name=None, loc=None, columns=[], custom_assertions=[]):
         assertions = [self.assert_columns] + custom_assertions
@@ -64,7 +64,7 @@ class PandasDFResource(LocalFileResource):
         return data.to_csv(path, index=False)
 
 
-class PickleResource(LocalFileResource):
+class PickleResource(LocalFile):
 
     def __init__(self, name=None, loc=None, custom_assertions=[]):
         super().__init__(name, loc, assertions=custom_assertions)
