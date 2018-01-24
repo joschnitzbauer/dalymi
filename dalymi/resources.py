@@ -1,11 +1,10 @@
-import abc
 import os.path
 import pickle
 
 import pandas as pd
 
 
-class Resource(abc.ABC):
+class Resource:
 
     def __init__(self, name=None, loc=None, assertions=[]):
         self.name = name
@@ -34,18 +33,6 @@ class Resource(abc.ABC):
     def assert_integrity(self, data):
         for assertion in self.assertions:
             assertion(data)
-
-    @abc.abstractmethod
-    def check(self, path):
-        return
-
-    @abc.abstractmethod
-    def load(self, path):
-        return
-
-    @abc.abstractmethod
-    def save(self, path, data):
-        return
 
 
 class LocalFileResource(Resource):
