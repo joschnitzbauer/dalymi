@@ -6,4 +6,4 @@ setup(name='dalymi',
       author='Joerg Schnitzbauer',
       author_email='joschnitzbauer@gmail.com',
       license='MIT',
-      py_modules=['dalymi'])
+      packages=['dalymi'])

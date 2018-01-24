@@ -1,5 +1,6 @@
 import pandas as pd
-from dalymi import Pipeline, PandasDFResource
+from dalymi import Pipeline
+from dalymi.resources import PandasDFResource
 
 pl = Pipeline(verbose_during_setup=True)
 
