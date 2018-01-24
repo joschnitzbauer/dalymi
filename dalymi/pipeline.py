@@ -2,6 +2,7 @@ import argparse
 from functools import wraps
 import itertools
 import pprint
+import subprocess
 
 
 class Pipeline:
@@ -86,6 +87,30 @@ class Pipeline:
         pipeline_cli = PipelineCLI(self)
         pipeline_cli.run()
 
+    def dot(self, T='png'):
+        dot = 'digraph pipeline {\n'
+        for func in self.funcs:
+            dot += f'\t{func} [fontname="\\"Lucida Console\\", Monaco, Consolas, monospace bold" fontsize=11]\n'
+        for resource, func in self.producers.items():
+            table = '<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">'
+            table += f'<TR><TD><B>{resource.name}</B></TD></TR>'
+            if hasattr(resource, 'columns'):
+                for column in resource.columns:
+                    table += f'<TR><TD>{column}</TD></TR>'
+            table += '</TABLE>>'
+            dot += f'\t{resource.name} [label={table} fontname="\\"Lucida Console\\", Monaco, Consolas, monospace" '
+            dot += 'fontsize=11 height=0 margin=0 shape=none width=0]\n'
+            # the edge:
+            dot += f'\t{func.__name__} -> {resource.name}\n'
+        # edges for consumers:
+        for resource_name, func_name in self.consumers:
+            dot += f'\t{resource_name} -> {func_name}\n'
+        dot += '}\n'
+        with open('pipeline.dot', 'w') as f:
+            f.write(dot)
+        extension = T.split(':')[0]
+        subprocess.call(['dot', f'-T{T}', 'pipeline.dot', f'-o pipeline.{extension}'])
+
     def log(self, message, context={'verbose': False}, verbose=False):
         '''
         Logs the supplied message which is currently equivalent to printing (to be improved).
@@ -95,24 +120,6 @@ class Pipeline:
         '''
         if verbose or context['verbose']:
             print(message)
-
-    def plot(self, **kwargs):
-        from graphviz import Digraph
-        graph = Digraph('pipeline')
-        for func in self.funcs:
-            graph.node(func, fontname='"Lucida Console", Monaco, Consolas, monospace bold', fontsize='11')
-        for resource, func in self.producers.items():
-            table = '<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">'
-            table += f'<TR><TD><B>{resource.name}</B></TD></TR>'
-            if hasattr(resource, 'columns'):
-                for column in resource.columns:
-                    table += f'<TR><TD>{column}</TD></TR>'
-            table += '</TABLE>>'
-            graph.node(resource.name, shape='none', label=table, width='0', height='0', margin='0',
-                       fontname='"Lucida Console", Monaco, Consolas, monospace', fontsize='11')
-            graph.edge(func.__name__, resource.name)
-        graph.edges(self.consumers)
-        graph.render(**kwargs)
 
     def run(self, task=None, verbose=False, **context):
         context['task'] = task
@@ -186,7 +193,7 @@ class PipelineCLI():
         self.run_parser.add_argument('-t', '--task', help='run/undo a specific task')
         self.run_parser.add_argument('-v', '--verbose', action='store_true', help='be verbose about pipeline internals')
 
-        self.plot_parser = self.subparsers.add_parser('plot', help='plot the DAG')
+        self.dot_parser = self.subparsers.add_parser('dot', help='create a graphviz dot file of the DAG')
 
     def run(self, context={}):
         undo_parser = self.subparsers.add_parser('undo', parents=[self.run_parser], add_help=False,
@@ -198,7 +205,7 @@ class PipelineCLI():
             self.pipeline.run(**context)
         elif args.command == 'undo':
             self.pipeline.undo(**context)
-        elif args.command == 'plot':
-            self.pipeline.plot()
+        elif args.command == 'dot':
+            dot = self.pipeline.dot()
         else:
             self.parser.print_help()

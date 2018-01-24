@@ -46,13 +46,13 @@ class LocalFileResource(Resource):
 
 class PandasDFResource(LocalFileResource):
 
-    def __init__(self, name=None, loc=None, columns=None, custom_assertions=[]):
+    def __init__(self, name=None, loc=None, columns=[], custom_assertions=[]):
         assertions = [self.assert_columns] + custom_assertions
         super().__init__(name, loc, assertions=assertions)
         self.columns = columns
 
     def assert_columns(self, df):
-        if self.columns is not None:
+        if len(self.columns):
             assert set(df.columns) == set(self.columns), \
                 f'Columns of resource <{self.name}> do not match expected. ' \
                 + f'Present: {set(df.columns)}. Expected: {set(self.columns)}.'
