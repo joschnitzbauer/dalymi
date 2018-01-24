@@ -121,6 +121,13 @@ class Pipeline:
         if verbose or context['verbose']:
             print(message)
 
+    def ls(self):
+        tasks = list(self.funcs.keys())
+        msg = 'Tasks in pipeline:\n'
+        for task in tasks:
+            msg += f'\t{task}\n'
+        print(msg, end='')
+
     def run(self, task=None, verbose=False, **context):
         context['task'] = task
         context['verbose'] = verbose
@@ -195,6 +202,8 @@ class PipelineCLI():
 
         self.dot_parser = self.subparsers.add_parser('dot', help='create a graphviz dot file of the DAG')
 
+        self.ls_parser = self.subparsers.add_parser('ls', help='list pipeline tasks')
+
     def run(self, context={}):
         undo_parser = self.subparsers.add_parser('undo', parents=[self.run_parser], add_help=False,
                                                  description='undo tasks')
@@ -206,6 +215,8 @@ class PipelineCLI():
         elif args.command == 'undo':
             self.pipeline.undo(**context)
         elif args.command == 'dot':
-            dot = self.pipeline.dot()
+            self.pipeline.dot()
+        elif args.command == 'ls':
+            self.pipeline.ls()
         else:
             self.parser.print_help()
