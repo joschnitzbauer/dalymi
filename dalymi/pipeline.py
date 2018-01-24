@@ -3,8 +3,6 @@ from functools import wraps
 import itertools
 import pprint
 
-import pandas as pd
-
 
 class Pipeline:
 
@@ -116,9 +114,8 @@ class Pipeline:
         graph.edges(self.consumers)
         graph.render(**kwargs)
 
-    def run(self, task=None, execution_date=pd.Timestamp('today').date(), verbose=False, **context):
+    def run(self, task=None, verbose=False, **context):
         context['task'] = task
-        context['execution_date'] = execution_date
         context['verbose'] = verbose
         pretty_context = pprint.pformat(context)
         pretty_indented_context = '\n'.join(['  ' + _ for _ in pretty_context.split('\n')])
@@ -159,9 +156,8 @@ class Pipeline:
                 self.log(f'Deleting <{output.name}> at \'{loc}\'.', context)
                 output._delete(context)
 
-    def undo(self, task=None, execution_date=pd.Timestamp('today').date(), downstream=False, verbose=False, **context):
+    def undo(self, task=None, downstream=False, verbose=False, **context):
         context['task'] = task
-        context['execution_date'] = execution_date
         context['downstream'] = downstream
         context['verbose'] = verbose
         pretty_context = pprint.pformat(context)
@@ -188,14 +184,13 @@ class PipelineCLI():
 
         self.run_parser = self.subparsers.add_parser('run', help='run the pipeline')
         self.run_parser.add_argument('-t', '--task', help='run/undo a specific task')
-        self.run_parser.add_argument('-e', '--execution-date', default=pd.Timestamp('today').date(),
-                                     type=lambda x: pd.to_datetime(x).date(), help='the date of execution')
         self.run_parser.add_argument('-v', '--verbose', action='store_true', help='be verbose about pipeline internals')
 
         self.plot_parser = self.subparsers.add_parser('plot', help='plot the DAG')
 
     def run(self, context={}):
-        undo_parser = self.subparsers.add_parser('undo', parents=[self.run_parser], add_help=False, description='undo tasks')
+        undo_parser = self.subparsers.add_parser('undo', parents=[self.run_parser], add_help=False,
+                                                 description='undo tasks')
         undo_parser.add_argument('-d', '--downstream', action='store_true', help='undo downstream tasks')
         args = self.parser.parse_args()
         context = {**vars(args), **context}
