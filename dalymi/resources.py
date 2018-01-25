@@ -4,7 +4,17 @@ import pickle
 import pandas as pd
 
 
-class PipelineResource:
+class AssertedResource:
+
+    def __init__(self, assertions=[]):
+        self.assertions = assertions
+
+    def assert_integrity(self, data):
+        for assertion in self.assertions:
+            assertion(data)
+
+
+class PipelineResource():
 
     def __init__(self, name=None, loc=None):
         self.name = name
@@ -21,23 +31,15 @@ class PipelineResource:
     def _load(self, context):
         path = self.loc.format(**context)
         data = self.load(path)
-        self.assert_integrity(data)
+        if hasattr(self, 'assert_integrity'):
+            self.assert_integrity(data)
         return data
 
     def _save(self, data, context):
-        self.assert_integrity(data)
+        if hasattr(self, 'assert_integrity'):
+            self.assert_integrity(data)
         path = self.loc.format(**context)
         self.save(path, data)
-
-
-class AssertedResource:
-
-    def __init__(self, assertions=[]):
-        self.assertions = assertions
-
-    def assert_integrity(self, data):
-        for assertion in self.assertions:
-            assertion(data)
 
 
 class LocalFileMixin:
