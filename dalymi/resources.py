@@ -1,8 +1,9 @@
+from abc import ABC, abstractmethod
 import os.path
 import pickle
 
 
-class Resource:
+class Resource(ABC):
 
     def __init__(self, name=None, loc=None, assertions=[]):
         self.name = name
@@ -20,13 +21,11 @@ class Resource:
     def _load(self, context):
         path = self.loc.format(**context)
         data = self.load(path)
-        if hasattr(self, 'assert_integrity'):
-            self.assert_integrity(data)
+        self.assert_integrity(data)
         return data
 
     def _save(self, data, context):
-        if hasattr(self, 'assert_integrity'):
-            self.assert_integrity(data)
+        self.assert_integrity(data)
         path = self.loc.format(**context)
         self.save(path, data)
 
@@ -34,8 +33,26 @@ class Resource:
         for assertion in self.assertions:
             assertion(data)
 
+    @abstractmethod
+    def check(self, path):
+        pass
+
+    def delete(self, path):
+        msg = f'Could not delete resource <{self.name}> (and possibly others), '
+        msg += 'because the class does not override the `delete` method.'
+        raise NotImplementedError(msg)
+
+    @abstractmethod
+    def load(self, path):
+        pass
+
+    @abstractmethod
+    def save(self, path, data):
+        pass
+
 
 class LocalFileMixin:
+    ''' Provides default `check` and `delete` methods for local file resources. Inherit from this before any abstract class.'''
 
     def check(self, path):
         return os.path.isfile(path)
@@ -58,7 +75,7 @@ class PandasDF(Resource):
                 + f'Present: {set(df.columns)}. Expected: {set(self.columns)}.'
 
 
-class PandasCSV(PandasDF, LocalFileMixin):
+class PandasCSV(LocalFileMixin, PandasDF):
 
     def __init__(self, name=None, loc=None, columns=None, custom_assertions=[]):
         PandasDF.__init__(self, name=name, loc=loc, columns=columns, custom_assertions=custom_assertions)
