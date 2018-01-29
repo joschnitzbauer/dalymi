@@ -4,21 +4,12 @@ import pickle
 import pandas as pd
 
 
-class AssertedResource:
+class Resource:
 
-    def __init__(self, assertions=[]):
-        self.assertions = assertions
-
-    def assert_integrity(self, data):
-        for assertion in self.assertions:
-            assertion(data)
-
-
-class PipelineResource():
-
-    def __init__(self, name=None, loc=None):
+    def __init__(self, name=None, loc=None, assertions=[]):
         self.name = name
         self.loc = loc
+        self.assertions = assertions
 
     def _check(self, context):
         path = self.loc.format(**context)
@@ -41,6 +32,10 @@ class PipelineResource():
         path = self.loc.format(**context)
         self.save(path, data)
 
+    def assert_integrity(self, data):
+        for assertion in self.assertions:
+            assertion(data)
+
 
 class LocalFileMixin:
 
@@ -51,25 +46,24 @@ class LocalFileMixin:
         return os.remove(path)
 
 
-class PandasDF(AssertedResource):
+class PandasDF(Resource):
 
-    def __init__(self, columns=[], custom_assertions=[]):
+    def __init__(self, name=None, loc=None, columns=None, custom_assertions=[]):
         assertions = [self.assert_columns] + custom_assertions
-        super().__init__(assertions=assertions)
+        super().__init__(name=name, loc=loc, assertions=assertions)
         self.columns = columns
 
     def assert_columns(self, df):
-        if len(self.columns):
+        if self.columns is not None:
             assert set(df.columns) == set(self.columns), \
                 f'Columns of resource <{self.name}> do not match expected. ' \
                 + f'Present: {set(df.columns)}. Expected: {set(self.columns)}.'
 
 
-class PandasCSV(PandasDF, PipelineResource, LocalFileMixin):
+class PandasCSV(PandasDF, LocalFileMixin):
 
-    def __init__(self, name, loc, columns=[], custom_assertions=[]):
-        PandasDF.__init__(self, columns, custom_assertions)
-        PipelineResource.__init__(self, name=name, loc=loc)
+    def __init__(self, name=None, loc=None, columns=None, custom_assertions=[]):
+        PandasDF.__init__(self, name=name, loc=loc, columns=columns, custom_assertions=custom_assertions)
 
     def load(self, path):
         return pd.read_csv(path)
@@ -78,11 +72,10 @@ class PandasCSV(PandasDF, PipelineResource, LocalFileMixin):
         return data.to_csv(path, index=False)
 
 
-class Pickle(AssertedResource, PipelineResource, LocalFileMixin):
+class Pickle(Resource, LocalFileMixin):
 
-    def __init__(self, name, loc, custom_assertions=[]):
-        AssertedResource.__init__(self, assertions=custom_assertions)
-        PipelineResource.__init__(self, name=name, loc=loc)
+    def __init__(self, name=None, loc=None, custom_assertions=[]):
+        Resource.__init__(self, name=name, loc=loc, assertions=custom_assertions)
 
     def load(self, path):
         with open(path, 'rb') as f:

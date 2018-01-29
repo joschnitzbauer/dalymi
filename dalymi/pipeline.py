@@ -60,9 +60,10 @@ class Pipeline:
             func_wrapped = self._create_input_wrapper(func, input)
             self.log(f'Registering <{func.__name__}> as a consumer function.', verbose=self.verbose_during_setup)
             self.consumers.extend([(_.name, func.__name__) for _ in input])
-            # just in case we don't have ouput. If we do, this will be overwritten, because the output decorator
+            # This will be overwritten by an output decorator, because the output decorator
             # has to wrap the input decorator:
             self.funcs[func.__name__] = func_wrapped
+            # Same here:
             self.original_funcs[func_wrapped] = func
             return func_wrapped
         return decorator
@@ -87,14 +88,14 @@ class Pipeline:
         pipeline_cli = PipelineCLI(self)
         pipeline_cli.run()
 
-    def dot(self, T='png'):
+    def dot(self, T='pdf'):
         dot = 'digraph pipeline {\n'
         for func in self.funcs:
             dot += f'\t{func} [fontname="\\"Lucida Console\\", Monaco, Consolas, monospace bold" fontsize=11]\n'
         for resource, func in self.producers.items():
             table = '<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">'
             table += f'<TR><TD><B>{resource.name}</B></TD></TR>'
-            if hasattr(resource, 'columns'):
+            if hasattr(resource, 'columns') and resource.columns is not None:
                 for column in resource.columns:
                     table += f'<TR><TD>{column}</TD></TR>'
             table += '</TABLE>>'
