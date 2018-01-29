@@ -91,16 +91,15 @@ class Pipeline:
     def dot(self, T='pdf'):
         dot = 'digraph pipeline {\n'
         for func in self.funcs:
-            dot += f'\t{func} [fontname="\\"Lucida Console\\", Monaco, Consolas, monospace bold" fontsize=11]\n'
+            dot += f'\t{func}\n'
         for resource, func in self.producers.items():
             table = '<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">'
-            table += f'<TR><TD><B>{resource.name}</B></TD></TR>'
+            table += f'<TR><TD bgcolor="grey">{resource.name}</TD></TR>'
             if hasattr(resource, 'columns') and resource.columns is not None:
                 for column in resource.columns:
                     table += f'<TR><TD>{column}</TD></TR>'
             table += '</TABLE>>'
-            dot += f'\t{resource.name} [label={table} fontname="\\"Lucida Console\\", Monaco, Consolas, monospace" '
-            dot += 'fontsize=11 height=0 margin=0 shape=none width=0]\n'
+            dot += f'\t{resource.name} [label={table} fontsize=11 height=0 margin=0 shape=none width=0]'
             # the edge:
             dot += f'\t{func.__name__} -> {resource.name}\n'
         # edges for consumers:
