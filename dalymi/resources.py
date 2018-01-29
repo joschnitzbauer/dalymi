@@ -68,6 +68,9 @@ class PandasCSV(PandasDF, LocalFileMixin):
         return pd.read_csv(path)
 
     def save(self, path, data):
+        dirs = os.path.dirname(path)
+        if dirs:
+            os.makedirs(dirs, exist_ok=True)
         return data.to_csv(path, index=False)
 
 
