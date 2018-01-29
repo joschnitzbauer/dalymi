@@ -1,8 +1,6 @@
 import os.path
 import pickle
 
-import pandas as pd
-
 
 class Resource:
 
@@ -66,6 +64,7 @@ class PandasCSV(PandasDF, LocalFileMixin):
         PandasDF.__init__(self, name=name, loc=loc, columns=columns, custom_assertions=custom_assertions)
 
     def load(self, path):
+        import pandas as pd  # importing pandas here to avoid general dependency on it
         return pd.read_csv(path)
 
     def save(self, path, data):
