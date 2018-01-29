@@ -1,13 +1,19 @@
+import logging
+
 import pandas as pd
 from dalymi import Pipeline
 from dalymi.resources import PandasCSV
 
 
-pl = Pipeline(verbose_during_setup=True)
+logging.basicConfig()
+logging.getLogger('dalymi').setLevel(logging.INFO)
 
 
-first_df = PandasCSV(name='first_df', loc='first_df.csv', columns=['a'])
-second_df = PandasCSV(name='second_df', loc='second_df.csv', columns=['a', 'b'])
+pl = Pipeline()
+
+
+first_df = PandasCSV(name='first_df', loc='data/first_df.csv', columns=['a'])
+second_df = PandasCSV(name='second_df', loc='data/second_df.csv', columns=['a', 'b'])
 
 
 @pl.output(first_df)

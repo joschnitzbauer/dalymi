@@ -1,19 +1,19 @@
 import argparse
 from functools import wraps
 import itertools
+import logging
 import pprint
 import subprocess
 
 
 class Pipeline:
 
-    def __init__(self, verbose_during_setup=False):
+    def __init__(self):
         self.outputs = {}    # keys: funcs, values: list of output resources
         self.producers = {}  # keys: resources, values: funcs_wrapped
         self.funcs = {}      # keys: func names, values: funcs_wrapped
         self.consumers = []  # list of (resource name, func name)
         self.original_funcs = {}  # keys: funcs_wrapped, values: funcs
-        self.verbose_during_setup = verbose_during_setup
 
     def _create_input_wrapper(self, func, input):
 
@@ -22,12 +22,12 @@ class Pipeline:
             missing = [_ for _ in input if not _._check(context)]
             producers_missing = [self.producers[_] for _ in missing]
             for producer in producers_missing:
-                self.log(f'Running producer <{producer.__name__}>.', context)
+                self.log(f'Running producer <{producer.__name__}>.')
                 producer(**context)
-            self.log(f'Loading inputs {[_.name for _ in input]}.', context)
+            self.log(f'Loading inputs {[_.name for _ in input]}.')
             input_dict = {_.name: _._load(context) for _ in input}
             kwargs = {**input_dict, **context}
-            self.log(f'Attempting to run function <{func.__name__}>.', context)
+            self.log(f'Attempting to run function <{func.__name__}>.')
             results = func(**kwargs)
             return results
 
@@ -37,17 +37,17 @@ class Pipeline:
 
         @wraps(func)
         def func_wrapped(**context):
-            self.log(f'Checking if outputs of function <{func.__name__}> exist.', context)
+            self.log(f'Checking if outputs of function <{func.__name__}> exist.')
             missing = [_ for _ in output if not _._check(context)]
             if missing:
-                self.log(f'Missing outputs {[_.name for _ in missing]} of function <{func.__name__}>.', context)
+                self.log(f'Missing outputs {[_.name for _ in missing]} of function <{func.__name__}>.')
             else:
-                self.log(f'Skipping function <{func.__name__}>, because all outputs exist.', context)
+                self.log(f'Skipping function <{func.__name__}>, because all outputs exist.')
                 return
             results = func(**context)
             if not isinstance(results, tuple):
                 results = (results,)
-            self.log(f'Saving outputs of function <{func.__name__}>.', context)
+            self.log(f'Saving outputs of function <{func.__name__}>.')
             resources = self.outputs[func]
             for resource, result in zip(resources, results):
                 resource._save(result, context)
@@ -58,7 +58,7 @@ class Pipeline:
     def input(self, *input):
         def decorator(func):
             func_wrapped = self._create_input_wrapper(func, input)
-            self.log(f'Registering <{func.__name__}> as a consumer function.', verbose=self.verbose_during_setup)
+            self.log(f'Registering <{func.__name__}> as a consumer function.')
             self.consumers.extend([(_.name, func.__name__) for _ in input])
             # This will be overwritten by an output decorator, because the output decorator
             # has to wrap the input decorator:
@@ -71,11 +71,11 @@ class Pipeline:
     def output(self, *output):
         def decorator(func):
             func_wrapped = self._create_output_wrapper(func, output)
-            self.log(f'Registering {[_.name for _ in output]} as output of <{func.__name__}>', verbose=self.verbose_during_setup)
+            self.log(f'Registering {[_.name for _ in output]} as output of <{func.__name__}>.')
             self.outputs[func] = output
             for resource in output:
                 self.producers[resource] = func_wrapped
-            self.log(f'Registering <{func.__name__}> as producer function.', verbose=self.verbose_during_setup)
+            self.log(f'Registering <{func.__name__}> as producer function.')
             self.funcs[func.__name__] = func_wrapped
             self.original_funcs[func_wrapped] = func
             return func_wrapped
@@ -111,15 +111,12 @@ class Pipeline:
         extension = T.split(':')[0]
         subprocess.call(['dot', f'-T{T}', 'pipeline.dot', f'-o pipeline.{extension}'])
 
-    def log(self, message, context={'verbose': False}, verbose=False):
+    def log(self, message):
         '''
-        Logs the supplied message which is currently equivalent to printing (to be improved).
-        Additionally, the message is verbosed to the command line if either the `context['verbose']` or the keyword
-        argument `verbose` is True. The keyword argument is essential for logging during DAG definition, because at
-        this time, there is no context available yet.
+        Logs the supplied message to a Python logger named `__name__` on log level `INFO`.
         '''
-        if verbose or context['verbose']:
-            print(message)
+        logger = logging.getLogger(__name__)
+        logger.info(message)
 
     def ls(self):
         tasks = list(self.funcs.keys())
@@ -128,19 +125,18 @@ class Pipeline:
             msg += f'\t{task}\n'
         print(msg, end='')
 
-    def run(self, task=None, verbose=False, **context):
+    def run(self, task=None, **context):
         context['task'] = task
-        context['verbose'] = verbose
         pretty_context = pprint.pformat(context)
         pretty_indented_context = '\n'.join(['  ' + _ for _ in pretty_context.split('\n')])
-        self.log('Running with context:\n' + pretty_indented_context, context)
+        self.log('Running with context:\n' + pretty_indented_context)
         if task:
             func = self.funcs[task]
             func(**context)
         else:
-            self.log('Auto-running DAG.', context)
+            self.log('Auto-running DAG.')
             for func in self.funcs.values():
-                self.log(f'Attempting function <{func.__name__}>.', context)
+                self.log(f'Attempting function <{func.__name__}>.')
                 func(**context)
 
     def get_downstream_tasks(self, task):
@@ -167,16 +163,15 @@ class Pipeline:
         for output in outputs:
             if output._check(context):
                 loc = output.loc.format(**context)
-                self.log(f'Deleting <{output.name}> at \'{loc}\'.', context)
+                self.log(f'Deleting <{output.name}> at \'{loc}\'.')
                 output._delete(context)
 
-    def undo(self, task=None, downstream=False, verbose=False, **context):
+    def undo(self, task=None, downstream=False, **context):
         context['task'] = task
         context['downstream'] = downstream
-        context['verbose'] = verbose
         pretty_context = pprint.pformat(context)
         pretty_indented_context = '\n'.join(['  ' + _ for _ in pretty_context.split('\n')])
-        self.log('Undoing with context:\n' + pretty_indented_context, context)
+        self.log('Undoing with context:\n' + pretty_indented_context)
         if task and downstream:
             tasks_to_undo = self.get_downstream_tasks(task)
             tasks_to_undo.add(task)
@@ -184,7 +179,7 @@ class Pipeline:
             tasks_to_undo = [task]
         else:
             tasks_to_undo = self.funcs.keys()
-        self.log(f'Undoing tasks {list(tasks_to_undo)}.', context)
+        self.log(f'Undoing tasks {list(tasks_to_undo)}.')
         self.delete_output(tasks_to_undo, context)
 
 
@@ -198,7 +193,6 @@ class PipelineCLI():
 
         self.run_parser = self.subparsers.add_parser('run', help='run the pipeline')
         self.run_parser.add_argument('-t', '--task', help='run/undo a specific task')
-        self.run_parser.add_argument('-v', '--verbose', action='store_true', help='be verbose about pipeline internals')
 
         self.dot_parser = self.subparsers.add_parser('dot', help='create a graphviz dot file of the DAG')
 
