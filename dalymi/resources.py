@@ -1,9 +1,8 @@
-from abc import ABC, abstractmethod
 import os.path
 import pickle
 
 
-class Resource(ABC):
+class Resource:
 
     def __init__(self, name=None, loc=None, assertions=[]):
         self.name = name
@@ -33,22 +32,25 @@ class Resource(ABC):
         for assertion in self.assertions:
             assertion(data)
 
-    @abstractmethod
     def check(self, path):
-        pass
-
-    def delete(self, path):
-        msg = f'Could not delete resource <{self.name}> (and possibly others), '
-        msg += 'because the class does not override the `delete` method.'
+        msg = f'Could not *check* resource <{self.name}> (and possibly others), '
+        msg += 'because the resource class has no implementation of the `check` method.'
         raise NotImplementedError(msg)
 
-    @abstractmethod
-    def load(self, path):
-        pass
+    def delete(self, path):
+        msg = f'Could not *delete* resource <{self.name}> (and possibly others), '
+        msg += 'because the resource class has no implementation of the `delete` method.'
+        raise NotImplementedError(msg)
 
-    @abstractmethod
+    def load(self, path):
+        msg = f'Could not *load* resource <{self.name}> (and possibly others), '
+        msg += 'because the resource class has no implementation of the `load` method.'
+        raise NotImplementedError(msg)
+
     def save(self, path, data):
-        pass
+        msg = f'Could not *save* resource <{self.name}> (and possibly others), '
+        msg += 'because the resource class has no implementation of the `save` method.'
+        raise NotImplementedError(msg)
 
 
 class LocalFileMixin:
@@ -75,7 +77,7 @@ class PandasDF(Resource):
                 + f'Present: {set(df.columns)}. Expected: {set(self.columns)}.'
 
 
-class PandasCSV(LocalFileMixin, PandasDF):
+class PandasCSV(PandasDF, LocalFileMixin):
 
     def __init__(self, name=None, loc=None, columns=None, custom_assertions=[]):
         PandasDF.__init__(self, name=name, loc=loc, columns=columns, custom_assertions=custom_assertions)
