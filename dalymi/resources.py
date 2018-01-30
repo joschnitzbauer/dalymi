@@ -54,7 +54,10 @@ class Resource:
 
 
 class LocalFileMixin:
-    ''' Provides default `check` and `delete` methods for local file resources. Inherit from this before any abstract class.'''
+    '''
+    Provides default `check` and `delete` methods for local file resources.
+    Inherit from this before other resource classes to avoid `NotImplementedError`.
+    '''
 
     def check(self, path):
         return os.path.isfile(path)
@@ -77,7 +80,7 @@ class PandasDF(Resource):
                 + f'Present: {set(df.columns)}. Expected: {set(self.columns)}.'
 
 
-class PandasCSV(PandasDF, LocalFileMixin):
+class PandasCSV(LocalFileMixin, PandasDF):
 
     def __init__(self, name=None, loc=None, columns=None, custom_assertions=[]):
         PandasDF.__init__(self, name=name, loc=loc, columns=columns, custom_assertions=custom_assertions)
@@ -93,7 +96,7 @@ class PandasCSV(PandasDF, LocalFileMixin):
         return data.to_csv(path, index=False)
 
 
-class Pickle(Resource, LocalFileMixin):
+class Pickle(LocalFileMixin, Resource):
 
     def __init__(self, name=None, loc=None, custom_assertions=[]):
         Resource.__init__(self, name=name, loc=loc, assertions=custom_assertions)
