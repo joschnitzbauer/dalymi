@@ -7,7 +7,12 @@
 *[insert link here]*
 
 ## Roadmap
-- add examples
-- write documentation
-- create unit tests
-- add api reference to documentation
+- Examples
+- Documentation
+- Recipes
+- Unit tests
+- Continuous integration
+- API reference
+- Parallel task processing
+- REST API during pipeline run
+- Web interface for pipeline run
