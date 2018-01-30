@@ -16,7 +16,6 @@ pip install git+https://github.com/joschnitzbauer/dalymi.git
 *[insert link here]*
 
 ## Roadmap
-- Examples
 - Documentation
 - Recipes
 - Unit tests
