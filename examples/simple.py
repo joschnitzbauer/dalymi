@@ -5,6 +5,7 @@ from dalymi import Pipeline
 from dalymi.resources import PandasCSV
 
 
+# dalymi logs mostly on level INFO. The following causes dalymi to be verbose:
 logging.basicConfig()
 logging.getLogger('dalymi').setLevel(logging.INFO)
 
@@ -12,6 +13,7 @@ logging.getLogger('dalymi').setLevel(logging.INFO)
 pl = Pipeline()
 
 
+# Define resources:
 first_df = PandasCSV(name='first_df', loc='data/first_df.csv', columns=['a'])
 second_df = PandasCSV(name='second_df', loc='data/second_df.csv', columns=['a', 'b'])
 
