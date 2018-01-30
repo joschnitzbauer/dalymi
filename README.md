@@ -13,7 +13,7 @@ pip install git+https://github.com/joschnitzbauer/dalymi.git
 ```
 
 ## Documentation
-*[insert link here]*
+http://dalymi.readthedocs.io/
 
 ## Roadmap
 - Documentation
