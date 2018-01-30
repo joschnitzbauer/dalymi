@@ -58,6 +58,10 @@ class LocalFileMixin:
     Provides default `check` and `delete` methods for local file resources.
     Inherit from this before other resource classes to avoid `NotImplementedError`.
     '''
+    def makedirs(self, path):
+        dirs = os.path.dirname(path)
+        if dirs:
+            os.makedirs(dirs, exist_ok=True)
 
     def check(self, path):
         return os.path.isfile(path)
@@ -90,9 +94,7 @@ class PandasCSV(LocalFileMixin, PandasDF):
         return pd.read_csv(path)
 
     def save(self, path, data):
-        dirs = os.path.dirname(path)
-        if dirs:
-            os.makedirs(dirs, exist_ok=True)
+        self.makedirs(path)
         return data.to_csv(path, index=False)
 
 
@@ -106,5 +108,6 @@ class Pickle(LocalFileMixin, Resource):
             return pickle.load(f)
 
     def save(self, path, data):
+        self.makedirs(path)
         with open(path, 'wb') as f:
             pickle.dump(data, f)
