@@ -1,9 +1,11 @@
-from setuptools import setup
+from distutils.core import setup
 
 
-setup(name='dalymi',
-      version=0.1,
-      author='Joerg Schnitzbauer',
+setup(author='Joerg Schnitzbauer',
       author_email='joschnitzbauer@gmail.com',
+      description='*dalymi* is a lightweight, data-focused and non-opinionated pipeline manager written in and for Python.',
       license='MIT',
-      packages=['dalymi'])
+      name='dalymi',
+      packages=['dalymi'],
+      url='https://github.com/joschnitzbauer/dalymi',
+      version=0.1)

@@ -2,6 +2,9 @@
 
 *dalymi* is a lightweight, data-focused and non-opinionated pipeline manager written in and for Python.
 
+## Installation
+*[installation instructions]*
+
 ## Documentation
 *[insert link here]*
 
