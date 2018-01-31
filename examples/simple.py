@@ -1,33 +1,27 @@
-import logging
-
-import pandas as pd
 from dalymi import Pipeline
 from dalymi.resources import PandasCSV
-
-
-# dalymi logs mostly on level INFO. The following causes dalymi to be verbose:
-logging.basicConfig()
-logging.getLogger('dalymi').setLevel(logging.INFO)
-
-
-pl = Pipeline()
+import pandas as pd
 
 
 # Define resources:
-first_df = PandasCSV(name='first_df', loc='data/first_df.csv', columns=['a'])
-second_df = PandasCSV(name='second_df', loc='data/second_df.csv', columns=['a', 'b'])
+numbers_resource = PandasCSV(name='numbers', loc='numbers.csv', columns=['number'])
+squares_resource = PandasCSV(name='squares', loc='squares.csv', columns=['number', 'square'])
 
 
-@pl.output(first_df)
-def first(**context):
-    return pd.DataFrame({'a': range(5)})
+# Define the pipeline
+pl = Pipeline()
 
 
-@pl.output(second_df)
-@pl.input(first_df)
-def second(first_df, **context):
-    first_df['b'] = first_df['a']**2
-    return first_df
+@pl.output(numbers_resource)
+def create_numbers(**context):
+    return pd.DataFrame({'number': range(11)})
+
+
+@pl.output(squares_resource)
+@pl.input(numbers_resource)
+def second(numbers, **context):
+    numbers['square'] = numbers['number']**2
+    return numbers
 
 
 if __name__ == '__main__':
