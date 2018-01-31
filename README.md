@@ -1,6 +1,6 @@
 # dalymi: *data like you mean it*
 
-*dalymi* is a lightweight, data-focused and non-opinionated pipeline manager written in and for Python.
+A lightweight, data-focused and non-opinionated pipeline manager written in and for Python.
 
 ## Installation
 ```
