@@ -91,7 +91,7 @@ class Pipeline:
     def dot(self, T='pdf'):
         dot = 'digraph pipeline {\n'
         for func in self.funcs:
-            dot += f'\t{func}\n'
+            dot += f'\t{func} [fontsize=13]\n'
         for resource, func in self.producers.items():
             table = '<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">'
             table += f'<TR><TD bgcolor="grey">{resource.name}</TD></TR>'
