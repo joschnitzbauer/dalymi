@@ -1,6 +1,9 @@
 # dalymi
 
 *[data like you mean it]*  
+
+[![Documentation Status](https://readthedocs.org/projects/dalymi/badge/?version=latest)](http://dalymi.readthedocs.io/en/latest/?badge=latest)
+
 A lightweight, data-focused and non-opinionated pipeline manager written in and for Python.
 
 ---
