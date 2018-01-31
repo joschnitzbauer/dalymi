@@ -19,7 +19,7 @@ def create_numbers(**context):
 
 @pl.output(squares_resource)
 @pl.input(numbers_resource)
-def second(numbers, **context):
+def square_numbers(numbers, **context):
     numbers['square'] = numbers['number']**2
     return numbers
 
