@@ -1,2 +1,5 @@
 site_name: dalymi
 theme: readthedocs
+pages:
+    - Home: index.md
+    - Recipes: recipes.md
