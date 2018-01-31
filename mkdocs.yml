@@ -3,3 +3,4 @@ theme: readthedocs
 pages:
     - Home: index.md
     - Recipes: recipes.md
+    - Reference: reference.md
