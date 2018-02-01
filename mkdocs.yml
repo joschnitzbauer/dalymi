@@ -4,3 +4,5 @@ pages:
     - Home: index.md
     - Recipes: recipes.md
     - Reference: reference.md
+markdown_extensions:
+    - admonition

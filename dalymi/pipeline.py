@@ -99,7 +99,7 @@ class Pipeline:
                 for column in resource.columns:
                     table += f'<TR><TD>{column}</TD></TR>'
             table += '</TABLE>>'
-            dot += f'\t{resource.name} [label={table} fontsize=11 height=0 margin=0 shape=none width=0]'
+            dot += f'\t{resource.name} [label={table} fontsize=12 height=0 margin=0 shape=none width=0]'
             # the edge:
             dot += f'\t{func.__name__} -> {resource.name}\n'
         # edges for consumers:
