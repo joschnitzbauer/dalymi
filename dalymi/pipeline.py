@@ -108,8 +108,6 @@ class Pipeline:
         dot += '}\n'
         with open('pipeline.dot', 'w') as f:
             f.write(dot)
-        extension = T.split(':')[0]
-        subprocess.call(['dot', f'-T{T}', 'pipeline.dot', f'-o pipeline.{extension}'])
 
     def log(self, message):
         '''
