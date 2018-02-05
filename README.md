@@ -7,12 +7,12 @@
 A lightweight, data-focused and non-opinionated pipeline manager written in and for Python.
 
 ## Installation
-```
+``` bash
 pip install dalymi
 ```
 
 For the latest development:
-```
+``` bash
 pip install git+https://github.com/joschnitzbauer/dalymi.git
 ```
 
