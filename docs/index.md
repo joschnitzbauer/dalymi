@@ -24,12 +24,12 @@ Several features facilitate this goal:
 
 
 ## Installation
-```
+``` bash
 pip install dalymi
 ```
 
 For the latest development:
-```
+``` bash
 pip install git+https://github.com/joschnitzbauer/dalymi.git
 ```
 
@@ -72,5 +72,81 @@ from dalymi.resources import PandasCSV
 import pandas as pd
 ```
 
-We are using a `Pipeline` object to represent the whole pipeline and `PandasCSV` objects to represent Pandas data frame
+We are using a `Pipeline` object to represent the whole pipeline and `PandasCSV` objects for Pandas data frame
 resources stores as CSV files. We also import `pandas` itself for later use.
+
+Next, we define the resources in our pipeline:
+``` python
+numbers_resource = PandasCSV(name='numbers', loc='numbers.csv', columns=['number'])
+squares_resource = PandasCSV(name='squares', loc='squares.csv', columns=['number', 'square'])
+```
+
+Here, we specify a unique name for each resource, the location where they should be stored (`loc`) and the columns we expect (`columns`).
+
+!!! note
+    Columns do not need to be specified for data frame resources (in this case, use `columns=None`), but it is highly encouraged for disciplined coding and self-documented code. The integrated `dot` command can visualize the columns in each resource when specified, allowing for quick and easy documentation.
+
+Now, we are ready to define the pipeline tasks. Here we go:
+
+``` python
+pl = Pipeline()
+
+
+@pl.output(numbers_resource)
+def create_numbers(**context):
+    return pd.DataFrame({'number': range(11)})
+
+
+@pl.output(squares_resource)
+@pl.input(numbers_resource)
+def square_numbers(numbers, **context):
+    numbers['square'] = numbers['number']**2
+    return numbers
+```
+
+Pipeline tasks are simple Python functions (`create_numbers` and `square_numbers`), decorated with either `Pipeline.input`, `Pipeline.output` or both.  
+Positional arguments of the `output` decorator are matched to the returned objects of the task function. For example: in `create_numbers`, the returned data frame is interpreted as the `numbers_resource`. The `output` decorator checks the returned objects for data integrity (in this case: do the columns match the expected?) and stores the object at the resource location (in this case: as a flat file called `numbers.csv`).  
+Positional arguments of the `input` decorator are loaded from the resource location and injected into a `context` dictionary with the resource `name` as key and the object itself as value. Hence, each pipeline task must accept a `context` dictionary as keyword arguments. Adding positional arguments to an input-receiving pipeline function is a handy Python trick to extract the arguments elegantly from `context` (e.g. `numbers` is directly pulled from `context` in the definition of the `square_numbers` function).
+
+`dalymi` provides an easy way to create command-line interfaces (CLIs) for pipelines. The default CLI is added to the above pipeline like this:
+
+``` python
+if __name__ == '__main__':
+    pl.cli()
+```
+
+Now, we can interact with the pipeline in the following way (assuming that above code is saved in a single file `simple.py`):
+
+``` bash
+python simple.py run     # executes the pipeline. skips tasks for which output already exists.
+python simple.py undo    # deletes any existing output resources of the pipeline.
+python simple.py dot     # creates a dot file to create pipeline diagrams with graphviz.
+```
+
+Task execution can be controlled a bit finer with CLI arguments. For example:
+
+``` bash
+python simple.py run --task square_numbers    # executes only `square_numbers` (and upstream requirements if needed).
+python simple.py run -t square_numbers        # short for the line above
+python simple.py ls                           # lists all tasks in the pipeline
+python simple.py undo --task square_numbers   # deletes only the output of `square_numbers`
+python simple.py undo -t square_numbers       # short for the line above
+python simple.py undo -t square_numbers -d    # deletes the output of `square_numbers` and all downstream outputs
+python simple.py undo -t square_numbers --downstream    # same as above
+```
+
+CLI commandas and arguments are added to the `context` dictionary, so pipeline tasks can make use of them.
+Hence, the minimal `context dictionary` is:
+
+``` python
+{'command': '{command}'}  # where {command} is one of `run`, `undo`, `ls`, `dot`
+```
+
+Depending on optional arguments, context may contain other CLI entries (by the argument's long version), such as:
+``` python
+{'task': 'square_numbers',
+ 'downstream': True}
+```
+
+!!! note
+    Extending the CLI with custom arguments allows for easy implementation of project-specific arguments (for example the execution date). See [Recipes](recipes.md) for further details.
