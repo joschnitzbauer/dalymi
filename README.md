@@ -20,11 +20,12 @@ pip install git+https://github.com/joschnitzbauer/dalymi.git
 http://dalymi.readthedocs.io/
 
 ## Roadmap
-- Documentation
-- Recipes
+- API reference
 - Unit tests
 - Continuous integration
-- API reference
 - Parallel task processing
 - REST API during pipeline run
 - Web interface for pipeline run
+
+## Contributions
+... are welcome!
