@@ -3,7 +3,6 @@ from functools import wraps
 import itertools
 import logging
 import pprint
-import subprocess
 
 
 class Pipeline:
