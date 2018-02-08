@@ -57,6 +57,9 @@ If the command line option is not used explicitely, today's date is used as defa
 we convert the provided value to a `datetime` object. Any string compatible with this transformation is hence valid,
 e.g. '2018-01-30'.
 
+Now, the `context` dictionary passed to each pipeline function will contain an entry with key `'execution_date'` and a
+`datetime` object as value (`argparse` converts hyphens to underscores to ensure valid Python naming).
+
 ## Custom resource classes
 
 _dalymi_ ships with a default set of resource classes (see `dalymi.resources`), most notably `PandasCSV` and `Pickle`.
