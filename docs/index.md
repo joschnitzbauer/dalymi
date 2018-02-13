@@ -23,6 +23,7 @@ Several features facilitate this goal:
 - API design encourages good development practices (modular code, defined data schemas, code-inherent docs, easy workflow viz, etc.)
 
 Links:
+
 - Repository: https://github.com/joschnitzbauer/dalymi
 - Documentation: http://dalymi.readthedocs.io
 - PyPi: https://pypi.python.org/pypi/dalymi
