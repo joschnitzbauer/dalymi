@@ -22,8 +22,10 @@ Several features facilitate this goal:
 - DAG visualization using [graphviz](https://www.graphviz.org/)
 - API design encourages good development practices (modular code, defined data schemas, code-inherent docs, easy workflow viz, etc.)
 
-Check out the tutorial below or examples in the **[Github repository](https://github.com/joschnitzbauer/dalymi)** to get a
-feel for _dalymi_.
+Links:
+- Repository: https://github.com/joschnitzbauer/dalymi
+- Documentation: http://dalymi.readthedocs.io
+- PyPi: https://pypi.python.org/pypi/dalymi
 
 ## Installation
 
