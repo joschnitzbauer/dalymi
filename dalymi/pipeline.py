@@ -6,6 +6,9 @@ import pprint
 
 
 class Pipeline:
+    '''
+    The main API to generate dalymi pipelines.
+    '''
 
     def __init__(self):
         self.outputs = {}    # keys: funcs, values: list of output resources
@@ -55,6 +58,12 @@ class Pipeline:
         return func_wrapped
 
     def input(self, *input):
+        '''
+        A decorator to specify input resources for the decorated task.
+
+        # Arguments
+        *input: a list of resource objects
+        '''
         def decorator(func):
             func_wrapped = self._create_input_wrapper(func, input)
             self.log(f'Registering <{func.__name__}> as a consumer function.')
