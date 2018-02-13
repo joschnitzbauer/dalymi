@@ -24,9 +24,9 @@ Several features facilitate this goal:
 
 Links:
 
-- Repository: https://github.com/joschnitzbauer/dalymi
-- Documentation: http://dalymi.readthedocs.io
-- PyPi: https://pypi.python.org/pypi/dalymi
+- Repository: <https://github.com/joschnitzbauer/dalymi>
+- Documentation: <http://dalymi.readthedocs.io>
+- PyPi: <https://pypi.python.org/pypi/dalymi>
 
 ## Installation
 
