@@ -141,6 +141,9 @@ Pipeline tasks are simple Python functions (`create_numbers` and `square_numbers
 Positional arguments of the `output` decorator are matched to the returned objects of the task function. For example: in `create_numbers`, the returned data frame is interpreted as the `numbers_resource`. The `output` decorator checks the returned objects for data integrity (in this case: do the columns match the expected?) and stores the object at the resource location (in this case: as a flat file called `numbers.csv`).<br>
 Positional arguments of the `input` decorator are loaded from the resource location and injected into a `context` dictionary with the resource `name` as key and the object itself as value. Hence, each pipeline task must accept a `context` dictionary as keyword arguments. Adding positional arguments to an input-receiving pipeline function is a handy Python trick to extract the arguments elegantly from `context` (e.g. `numbers` is directly pulled from `context` in the definition of the `square_numbers` function).
 
+!!! warning
+    An `output` decorator **must** wrap a potential `input` decorator to ensure correct pipeline functionality.
+
 `dalymi` provides an easy way to create command-line interfaces (CLIs) for pipelines. The default CLI is added to the above pipeline like this:
 
 ```python

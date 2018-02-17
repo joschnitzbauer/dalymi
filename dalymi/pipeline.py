@@ -61,6 +61,9 @@ class Pipeline:
         '''
         A decorator to specify input resources for the decorated task.
 
+        !!! warning
+            A potential `output` decorator **must** wrap an `input` decorator to ensure correct pipeline functionality.
+
         # Arguments
         *input: a list of resource objects
         '''
@@ -77,6 +80,16 @@ class Pipeline:
         return decorator
 
     def output(self, *output):
+        '''
+        A decorator to specify output resources for the decorated task.
+
+        !!! warning
+            The `output` decorator **must** wrap a potential `input` decorator to ensure correct pipeline
+            functionality.
+
+        # Arguments
+        *output: a list of resource objects
+        '''
         def decorator(func):
             func_wrapped = self._create_output_wrapper(func, output)
             self.log(f'Registering {[_.name for _ in output]} as output of <{func.__name__}>.')
@@ -190,6 +203,17 @@ class Pipeline:
 
 
 class PipelineCLI():
+    '''
+    A class representing the command line interface of a `Pipeline`.
+
+    # Arguments
+    pipeline (dalymi.pipeline.Pipeline): the pipeline object to create a CLI for.
+
+    # Attributes
+    run_parser (argparse.ArgumentParser): handles the `run` sub-command
+    dot_parser (argparse.ArgumentParser): handles the `dot` sub-command
+    ls_parser (argparse.ArgumentParser): handles the `ls` sub-command
+    '''
 
     def __init__(self, pipeline):
         self.pipeline = pipeline
@@ -204,12 +228,15 @@ class PipelineCLI():
 
         self.ls_parser = self.subparsers.add_parser('ls', help='list pipeline tasks')
 
-    def run(self, context={}):
+    def run(self):
+        '''
+        Parses arguments and runs the provided command.
+        '''
         undo_parser = self.subparsers.add_parser('undo', parents=[self.run_parser], add_help=False,
                                                  description='undo tasks')
         undo_parser.add_argument('-d', '--downstream', action='store_true', help='undo downstream tasks')
         args = self.parser.parse_args()
-        context = {**vars(args), **context}
+        context = vars(args)
         if args.command == 'run':
             self.pipeline.run(**context)
         elif args.command == 'undo':

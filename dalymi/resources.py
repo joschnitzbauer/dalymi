@@ -59,6 +59,10 @@ class LocalFileMixin:
     Inherit from this before other resource classes to avoid `NotImplementedError`.
     '''
     def makedirs(self, path):
+        '''
+        Convenience method to recursively create directories for a path if it does not exist.
+        Could be called, for example, in the `save` method of a sub-class.
+        '''
         dirs = os.path.dirname(path)
         if dirs:
             os.makedirs(dirs, exist_ok=True)
