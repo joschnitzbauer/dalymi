@@ -1,3 +1,6 @@
+<h1 id="dalymi.pipeline">dalymi.pipeline</h1>
+
+
 <h1 id="dalymi.pipeline.Pipeline">Pipeline</h1>
 
 ```python
