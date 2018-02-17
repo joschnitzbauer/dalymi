@@ -21,6 +21,7 @@ http://dalymi.readthedocs.io/
 
 ## Roadmap
 - API reference
+- Docstrings
 - Unit tests
 - Continuous integration
 - Parallel task processing
