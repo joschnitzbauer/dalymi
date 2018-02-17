@@ -33,6 +33,15 @@ class FigureResource(resources.LocalFileMixin, resources.Resource):
     def save(self, path, figure):
         return figure.savefig(path)
 
+#
+# Custom assertions
+#
+
+
+def none_null(df):
+    ''' Asserts that a dataframe does not contain any nulls. '''
+    assert df.isnull().sum().sum() == 0, 'Dataframe contains nulls.'
+
 
 #
 # Pipeline resources
@@ -47,7 +56,8 @@ raw = resources.PandasCSV(name='raw',
 # Pre-processed data ready for our machine learning algorithm
 prepared = resources.PandasCSV(name='prepared',
                                loc='data/prepared.csv',
-                               columns=['sepal_length', 'sepal_width', 'petal_length', 'petal_width'])
+                               columns=['sepal_length', 'sepal_width', 'petal_length', 'petal_width'],
+                               assertions=[none_null])
 
 # A pickled scikit-learn model
 # `{clusters}` will be replaced during runtime by the value of a `--clusters` command line argument.
