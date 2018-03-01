@@ -2,7 +2,7 @@
 
 ## Custom command line arguments
 The default command line interface can be executed by calling the `cli` method of a `Pipeline` object. However, to add
-custom commands or arguments, one needs to wrap the `Pipeline` object with a `PipelineCLI` object and call its `run`
+custom arguments, one needs to wrap the `Pipeline` object with a `PipelineCLI` object and call its `run`
 method instead:
 
 ``` python
@@ -15,15 +15,13 @@ pl = Pipeline()
 if __name__ == '__main__':
     cli = PipelineCLI(pl)
 
-    ''' add custom commands and arguments here '''
+    ''' add custom arguments here '''
 
     cli.run()
 ```
 
 The `PipelineCLI` object has several attributes to add custom functionality, most importantly:
 
-- `parser`: an instance of `argparse.ArgumentParser` handling the global interface.
-- `subparsers`: the special action object returned by `parser.add_subparsers(dest='command')`.
 - `run_parser`: an instance of `argparse.ArgumentParser` handling the `run` subcommand.
 - `ls_parser`: an instance of `argparse.ArgumentParser` handling the `ls` subcommand.
 - `dot_parser`: an instance of `argparse.ArgumentParser` handling the `dot` subcommand.
@@ -33,7 +31,7 @@ arguments match the ones of `run`, even if custom arguments were added to `run`.
 option is added to `undo`.
 
 The above listed objects can be used as in regular `argparse` command line interfaces. So, additional arguments could
-be added to the subcommand parsers (e.g. `run_parser`) or further subcommands to `subparsers`.
+be added to the subcommand parsers (e.g. `run_parser`).
 Any parsed commands and arguments are added during runtime to the `context` dictionary which has to be accepted by
 pipeline task functions and is used to format resource location templates. This makes default **and** custom arguments
 available as variables in pipeline tasks during execution.
@@ -184,3 +182,23 @@ automatically be added to the `undo` command.
 
 In this example, one could think of the pipeline being executed daily and each day, a freshly trained machine learning
 model would be pickled and saved in a folder of the current date.
+
+## Custom assertions
+During i/o operations on pipeline resources, _dalymi_ can run a set of assertions on the resource. This can be quite handy to check whether pipeline data is as expected.
+
+Custom resources, sub-classed from `resources.Resource` can implement assertions by submitting a list of functions to the `__init__` method of `resources.Resource` (keyword argument `assertions`). The submitted functions will be executed during loading/saving of the resource a must accept a single argument: the data object of the resource itself. The return value of the assertion function is ignored, so any error raising or logging should be handled in the assertion function itself, e.g. by using the `assert` statement.
+
+Other default resources shipped with _dalymi_ also accept the `assertion` keyword argument in their `__init__` method.
+
+Here is an example to assert the existence of null values in a Pandas dataframe:
+
+``` python
+def none_null(df):
+    ''' Asserts that a dataframe does not contain any nulls. '''
+    assert df.isnull().sum().sum() == 0, 'Dataframe contains nulls.'
+
+prepared = resources.PandasCSV(name='prepared',
+                               loc='data/prepared.csv',
+                               columns=['sepal_length', 'sepal_width', 'petal_length', 'petal_width'],
+                               assertions=[none_null])
+```

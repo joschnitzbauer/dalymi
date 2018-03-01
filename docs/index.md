@@ -44,12 +44,9 @@ DAG visualization requires [graphviz](https://www.graphviz.org/).
 
 ## Tutorial
 
-!!! note
-    The full source code for the example in this tutorial can be found at [`dalymi/examples/simple.py`](https://github.com/joschnitzbauer/dalymi/blob/master/examples/simple.py). Further examples can be found in the same folder.
+_dalymi_ programs consist of two main components: resources and tasks. Tasks are Python functions that create resources and/or require resources as input. Hence, a _dalymi_ pipeline can be described as a directed graph of tasks and resources where tasks are dependent on their input resources.
 
-_dalymi_ programs consist of two main components: resources and tasks. Tasks create resources and use them as input. Hence, a _dalymi_ DAG can be described as a graph of tasks and resources where tasks are dependent on the resources that they need.
-
-In this tutorial, we will create the following DAG:
+In this tutorial, we will create the following simple DAG:
 
 ![Simple DAG](img/simple.png)
 
@@ -61,9 +58,46 @@ In this graph, ellipses represent tasks and rectangles resources. The first row 
 
 Hence, we can see that the task `create_numbers` produces a resource `numbers` which has a single column called `number`. `numbers` in return is being used by a task `square_numbers` as an input. Finally, `square_numbers` produces an output resource `squares` with columns `number` and `square`.
 
-Upon execution of this DAG, _dalymi_ attempts to run each task, but will only execute them if the input resources exist. If an input resource does not exist, _dalymi_ will attempt to execute the producing task and revisit the unexecuted task later.
+Upon execution of this DAG, _dalymi_ attempts to run each task, but will only execute them if the input resources exist. If an input resource does not exist, _dalymi_ will recursively attempt to execute the producing task and revisit the unexecuted task later.
 
-To define the above pipeline, let's import everything we need first:
+The full code to create the above pipeline is:
+
+``` python
+from dalymi import Pipeline
+from dalymi.resources import PandasCSV
+import pandas as pd
+
+
+# Define resources:
+numbers_resource = PandasCSV(name='numbers', loc='numbers.csv', columns=['number'])
+squares_resource = PandasCSV(name='squares', loc='squares.csv', columns=['number', 'square'])
+
+
+# Define the pipeline
+pl = Pipeline()
+
+
+@pl.output(numbers_resource)
+def create_numbers(**context):
+    return pd.DataFrame({'number': range(11)})
+
+
+@pl.output(squares_resource)
+@pl.input(numbers_resource)
+def square_numbers(numbers, **context):
+    numbers['square'] = numbers['number']**2
+    return numbers
+
+
+if __name__ == '__main__':
+    # Run the default command line interface
+    pl.cli()
+```
+
+!!! note
+    Further examples can be found on [Github](https://github.com/joschnitzbauer/dalymi/tree/master/examples).
+
+Let's go through the code bit by bit. First, the imports:
 
 ```python
 from dalymi import Pipeline
@@ -71,7 +105,7 @@ from dalymi.resources import PandasCSV
 import pandas as pd
 ```
 
-We are using a `Pipeline` object to represent the whole pipeline and `PandasCSV` objects for Pandas data frame resources stores as CSV files. We also import `pandas` itself for later use.
+We are using a `Pipeline` object to represent the whole pipeline and `PandasCSV` objects for Pandas data frame resources stored as CSV files. We also import `pandas` itself for later use.
 
 Next, we define the resources in our pipeline:
 
@@ -85,7 +119,7 @@ Here, we specify a unique name for each resource, the location where they should
 !!! note
     Columns do not need to be specified for data frame resources (in this case, use `columns=None`), but it is highly encouraged for disciplined coding and self-documented code. The integrated `dot` command can visualize the columns in each resource when specified, allowing for quick and easy documentation.
 
-Now, we are ready to define the pipeline tasks. Here we go:
+Now, we are ready to define the pipeline tasks:
 
 ```python
 pl = Pipeline()
@@ -107,10 +141,14 @@ Pipeline tasks are simple Python functions (`create_numbers` and `square_numbers
 Positional arguments of the `output` decorator are matched to the returned objects of the task function. For example: in `create_numbers`, the returned data frame is interpreted as the `numbers_resource`. The `output` decorator checks the returned objects for data integrity (in this case: do the columns match the expected?) and stores the object at the resource location (in this case: as a flat file called `numbers.csv`).<br>
 Positional arguments of the `input` decorator are loaded from the resource location and injected into a `context` dictionary with the resource `name` as key and the object itself as value. Hence, each pipeline task must accept a `context` dictionary as keyword arguments. Adding positional arguments to an input-receiving pipeline function is a handy Python trick to extract the arguments elegantly from `context` (e.g. `numbers` is directly pulled from `context` in the definition of the `square_numbers` function).
 
+!!! warning
+    An `output` decorator **must** wrap a potential `input` decorator to ensure correct pipeline functionality.
+
 `dalymi` provides an easy way to create command-line interfaces (CLIs) for pipelines. The default CLI is added to the above pipeline like this:
 
 ```python
 if __name__ == '__main__':
+    # Run the default command line interface
     pl.cli()
 ```
 

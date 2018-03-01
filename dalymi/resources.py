@@ -59,6 +59,10 @@ class LocalFileMixin:
     Inherit from this before other resource classes to avoid `NotImplementedError`.
     '''
     def makedirs(self, path):
+        '''
+        Convenience method to recursively create directories for a path if it does not exist.
+        Could be called, for example, in the `save` method of a sub-class.
+        '''
         dirs = os.path.dirname(path)
         if dirs:
             os.makedirs(dirs, exist_ok=True)
@@ -72,8 +76,8 @@ class LocalFileMixin:
 
 class PandasDF(Resource):
 
-    def __init__(self, name=None, loc=None, columns=None, custom_assertions=[]):
-        assertions = [self.assert_columns] + custom_assertions
+    def __init__(self, name=None, loc=None, columns=None, assertions=[]):
+        assertions = [self.assert_columns] + assertions
         super().__init__(name=name, loc=loc, assertions=assertions)
         self.columns = columns
 
@@ -86,8 +90,8 @@ class PandasDF(Resource):
 
 class PandasCSV(LocalFileMixin, PandasDF):
 
-    def __init__(self, name=None, loc=None, columns=None, custom_assertions=[]):
-        PandasDF.__init__(self, name=name, loc=loc, columns=columns, custom_assertions=custom_assertions)
+    def __init__(self, name=None, loc=None, columns=None, assertions=[]):
+        PandasDF.__init__(self, name=name, loc=loc, columns=columns, assertions=assertions)
 
     def load(self, path):
         import pandas as pd  # importing pandas here to avoid general dependency on it
@@ -100,8 +104,8 @@ class PandasCSV(LocalFileMixin, PandasDF):
 
 class Pickle(LocalFileMixin, Resource):
 
-    def __init__(self, name=None, loc=None, custom_assertions=[]):
-        Resource.__init__(self, name=name, loc=loc, assertions=custom_assertions)
+    def __init__(self, name=None, loc=None, assertions=[]):
+        Resource.__init__(self, name=name, loc=loc, assertions=assertions)
 
     def load(self, path):
         with open(path, 'rb') as f:

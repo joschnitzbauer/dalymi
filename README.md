@@ -54,6 +54,7 @@ if __name__ == '__main__':
 
 ## Roadmap
 - API reference
+- Docstrings
 - Unit tests
 - Continuous integration
 - Parallel task processing
