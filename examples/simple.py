@@ -25,4 +25,5 @@ def square_numbers(numbers, **context):
 
 
 if __name__ == '__main__':
+    # run the default command line interface
     pl.cli()
