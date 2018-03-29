@@ -8,8 +8,8 @@ A lightweight, data-focused and non-opinionated pipeline manager written in and 
 
 --------------------------------------------------------------------------------
 
-_dalymi_ allows to build data processing pipelines as [directed acyclic graphs]([https://en.wikipedia.org/wiki/Directed_acyclic_graph]) (DAGs) and facilitates rapid, but controlled, model development. The goal is to prototype quickly, but scale to production with ease.<br>
-_dalymi_ uses "make"-style workflows, _i.e._ tasks with missing input trigger the execution of input-producing tasks before being executed themselves. At the same time, _dalymi_ provides fine control to run and undo specific pipeline parts for quick test iterations. This ensures output reproducability and minimizes manual errors.
+_dalymi_ allows to build data processing pipelines as [directed acyclic graphs]([https://en.wikipedia.org/wiki/Directed_acyclic_graph]) (DAGs) and facilitates rapid, but controlled, model development. The goal is to prototype quickly, but scale to production with ease.  
+To achieve this, _dalymi_ uses "make"-style workflows, _i.e._ tasks with missing input trigger the execution of input-producing tasks before being executed themselves. At the same time, _dalymi_ provides fine control to run and undo specific pipeline parts for quick test iterations. This ensures output reproducability and minimizes manual errors.
 
 Several features facilitate _dalymi_'s goal:
 
