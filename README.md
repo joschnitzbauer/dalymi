@@ -61,5 +61,8 @@ if __name__ == '__main__':
 - REST API during pipeline run
 - Web interface for pipeline run
 
+## Warranty
+Although _dalymi_ is successfully used in smaller applications, it is not battle-tested yet and lacks unit tests. If you decide to use it, be prepared to communicate issues or fix bugs (it's not a lot of code... :)).
+
 ## Contributions
 ... are welcome!
