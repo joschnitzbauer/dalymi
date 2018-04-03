@@ -228,7 +228,7 @@ class PipelineCLI():
 
         self.ls_parser = self.subparsers.add_parser('ls', help='list pipeline tasks')
 
-    def run(self):
+    def run(self, external_context={}):
         '''
         Parses arguments and runs the provided command.
         '''
@@ -236,7 +236,7 @@ class PipelineCLI():
                                                  description='undo tasks')
         undo_parser.add_argument('-d', '--downstream', action='store_true', help='undo downstream tasks')
         args = self.parser.parse_args()
-        context = vars(args)
+        context = {**external_context, **vars(args)}
         if args.command == 'run':
             self.pipeline.run(**context)
         elif args.command == 'undo':

@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
+import yaml
 
 
 # dalymi pipeline operations log on level INFO. Hence, the following causes dalymi to be verbose:
@@ -83,7 +84,7 @@ pl = Pipeline()
 
 
 @pl.output(raw)
-def get_data(**context):
+def get_data(data_url, **context):
     ''' Retrieves raw data from the internet. '''
     return pd.read_csv('https://archive.ics.uci.edu/ml/machine-learning-databases/iris/iris.data',
                        header=None, names=raw.columns)
@@ -144,5 +145,10 @@ if __name__ == '__main__':
                                 default='3',
                                 help='the number of clusters')
 
-    # Parses command line arguments, adds them to the default context and runs the pipeline:
-    cli.run()
+    # Load a config file:
+    with open('iris_config.yml', 'r') as f:
+        config = yaml.load(f)
+
+    # Parse command line arguments, add them to the default context and run the pipeline.
+    # The config is injected into the context by supplying it via `external_context`
+    cli.run(external_context=config)
