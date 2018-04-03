@@ -183,6 +183,29 @@ automatically be added to the `undo` command.
 In this example, one could think of the pipeline being executed daily and each day, a freshly trained machine learning
 model would be pickled and saved in a folder of the current date.
 
+## Project config management
+A dictionary of external context can be supplied to the `run` method of the `PipelineCLI` class. The external context will be combined with command line arguments as a unified `context` dictionary. This allows for convenient injection of a config file. For example:
+
+``` python
+from dalymi import Pipeline, PipelineCLI
+
+pl = Pipeline()
+
+@pl.output(some_resource)
+def some_task(my_parameter, **context):
+    # `my_parameter` originates from a key in `config.yml` and
+    # is being pulled out of the context dict for usage in this task.
+
+if __name__ == '__main__':
+    cli = PipelineCLI(pl)
+
+    with open('config.yml', 'r') as f:
+        config = yaml.load(f)
+
+    cli.run(external_context=config)
+```
+Now key-value pairs specified in `config.yml` will be present in the `context` dict supplied to each pipeline task. Parameters can be pulled out of the context dictionary by specifying their name as positional arguments.
+
 ## Custom assertions
 During i/o operations on pipeline resources, _dalymi_ can run a set of assertions on the resource. This can be quite handy to check whether pipeline data is as expected.
 
