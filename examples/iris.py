@@ -86,8 +86,7 @@ pl = Pipeline()
 @pl.output(raw)
 def get_data(data_url, **context):
     ''' Retrieves raw data from the internet. '''
-    return pd.read_csv('https://archive.ics.uci.edu/ml/machine-learning-databases/iris/iris.data',
-                       header=None, names=raw.columns)
+    return pd.read_csv(data_url, header=None, names=raw.columns)
 
 
 @pl.output(prepared)
