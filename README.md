@@ -6,6 +6,26 @@
 
 A lightweight, data-focused and non-opinionated pipeline manager written in and for Python.
 
+--------------------------------------------------------------------------------
+
+_dalymi_ allows to build data processing pipelines as [directed acyclic graphs]([https://en.wikipedia.org/wiki/Directed_acyclic_graph]) (DAGs) and facilitates rapid, but controlled, model development. The goal is to prototype quickly, but scale to production with ease.
+To achieve this, _dalymi_ uses "make"-style workflows, _i.e._ tasks with missing input trigger the execution of input-producing tasks before being executed themselves. At the same time, _dalymi_ provides fine control to run and undo specific pipeline parts for quick test iterations. This ensures output reproducability and minimizes manual errors.
+
+Several features facilitate _dalymi_'s goal:
+
+- simple, non-opinionated API (most choices left to user)
+- no external dependencies for pipeline execution
+- one-line installation (ready for use)
+- no configuration
+- auto-generated command line interface for pipeline execution
+- quick start, but high flexibility to customize and extend:
+    - task output can be stored in any format Python can touch (local files being the default)
+    - customizable command line arguments
+    - templated output location (e.g. timestamped files)
+    - support for automated checks on data integrity during runtime
+- DAG visualization using [graphviz](https://www.graphviz.org/)
+- API design encourages good development practices (modular code, defined data schemas, self-documenting code, easy workflow viz, etc.)
+
 ## Installation
 ``` bash
 pip install dalymi
@@ -20,6 +40,7 @@ pip install git+https://github.com/joschnitzbauer/dalymi.git
 http://dalymi.readthedocs.io/
 
 ## Simple example
+simple.py:
 ``` python
 from dalymi import Pipeline
 from dalymi.resources import PandasCSV
@@ -52,9 +73,15 @@ if __name__ == '__main__':
     pl.cli()
 ```
 
+Command line:
+```bash
+python simple.py run     # executes the pipeline. skips tasks for which output already exists.
+```
+
+More examples can be found [here](https://github.com/joschnitzbauer/dalymi/tree/master/examples).
+
 ## Roadmap
-- API reference
-- Docstrings
+- More docstrings
 - Unit tests
 - Continuous integration
 - Parallel task processing
