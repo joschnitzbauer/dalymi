@@ -27,6 +27,8 @@ Several features facilitate _dalymi_'s goal:
 - API design encourages good development practices (modular code, defined data schemas, self-documenting code, easy workflow viz, etc.)
 
 ## Installation
+_dalymi_ requires Python >= 3.6.
+
 ``` bash
 pip install dalymi
 ```
