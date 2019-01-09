@@ -3,3 +3,5 @@
 dist/
 data/
 MANIFEST
+__pycache__/
+*.egg-info/
