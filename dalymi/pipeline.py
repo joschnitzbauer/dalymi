@@ -24,12 +24,12 @@ class Pipeline:
             missing = [_ for _ in input if not _._check(context)]
             producers_missing = [self.producers[_] for _ in missing]
             for producer in producers_missing:
-                self.log(f'Running producer <{producer.__name__}>.')
+                self.log('Running producer <{}>.'.format(producer.__name__))
                 producer(**context)
-            self.log(f'Loading inputs {[_.name for _ in input]}.')
+            self.log('Loading inputs {}.'.format([_.name for _ in input]))
             input_dict = {_.name: _._load(context) for _ in input}
             kwargs = {**input_dict, **context}
-            self.log(f'Attempting to run function <{func.__name__}>.')
+            self.log('Attempting to run function <{}>.'.format(func.__name__))
             results = func(**kwargs)
             return results
 
@@ -39,17 +39,17 @@ class Pipeline:
 
         @wraps(func)
         def func_wrapped(**context):
-            self.log(f'Checking if outputs of function <{func.__name__}> exist.')
+            self.log('Checking if outputs of function <{}> exist.'.format(func.__name__))
             missing = [_ for _ in output if not _._check(context)]
             if missing:
-                self.log(f'Missing outputs {[_.name for _ in missing]} of function <{func.__name__}>.')
+                self.log('Missing outputs {} of function <{}>.'.format([_.name for _ in missing],func.__name__))
             else:
-                self.log(f'Skipping function <{func.__name__}>, because all outputs exist.')
+                self.log('Skipping function <{}>, because all outputs exist.'.format(func.__name__))
                 return
             results = func(**context)
             if not isinstance(results, tuple):
                 results = (results,)
-            self.log(f'Saving outputs of function <{func.__name__}>.')
+            self.log('Saving outputs of function <{}>.'.format(func.__name__))
             resources = self.outputs[func]
             for resource, result in zip(resources, results):
                 resource._save(result, context)
@@ -69,7 +69,7 @@ class Pipeline:
         '''
         def decorator(func):
             func_wrapped = self._create_input_wrapper(func, input)
-            self.log(f'Registering <{func.__name__}> as a consumer function.')
+            self.log('Registering <{}> as a consumer function.'.format(func.__name__))
             self.consumers.extend([(_.name, func.__name__) for _ in input])
             # This will be overwritten by an output decorator, because the output decorator
             # has to wrap the input decorator:
@@ -92,11 +92,11 @@ class Pipeline:
         '''
         def decorator(func):
             func_wrapped = self._create_output_wrapper(func, output)
-            self.log(f'Registering {[_.name for _ in output]} as output of <{func.__name__}>.')
+            self.log('Registering {} as output of <{}>.'.format([_.name for _ in output], func.__name__))
             self.outputs[func] = output
             for resource in output:
                 self.producers[resource] = func_wrapped
-            self.log(f'Registering <{func.__name__}> as producer function.')
+            self.log('Registering <{}> as producer function.'.format(func.__name__))
             self.funcs[func.__name__] = func_wrapped
             self.original_funcs[func_wrapped] = func
             return func_wrapped
@@ -112,20 +112,20 @@ class Pipeline:
     def dot(self, T='pdf'):
         dot = 'digraph pipeline {\n'
         for func in self.funcs:
-            dot += f'\t{func} [fontsize=13]\n'
+            dot += '\t{} [fontsize=13]\n'.format(func)
         for resource, func in self.producers.items():
             table = '<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">'
-            table += f'<TR><TD bgcolor="grey">{resource.name}</TD></TR>'
+            table += '<TR><TD bgcolor="grey">{}</TD></TR>'.format(resource.name)
             if hasattr(resource, 'columns') and resource.columns is not None:
                 for column in resource.columns:
-                    table += f'<TR><TD>{column}</TD></TR>'
+                    table += '<TR><TD>{}</TD></TR>'.format(column)
             table += '</TABLE>>'
-            dot += f'\t{resource.name} [label={table} fontsize=12 height=0 margin=0 shape=none width=0]'
+            dot += '\t{} [label={} fontsize=12 height=0 margin=0 shape=none width=0]'.format(resource.name, table)
             # the edge:
-            dot += f'\t{func.__name__} -> {resource.name}\n'
+            dot += '\t{} -> {}\n'.format(func.__name__,resource.name)
         # edges for consumers:
         for resource_name, func_name in self.consumers:
-            dot += f'\t{resource_name} -> {func_name}\n'
+            dot += '\t{} -> {}\n'.format(resource_name, func_name)
         dot += '}\n'
         with open('pipeline.dot', 'w') as f:
             f.write(dot)
@@ -141,7 +141,7 @@ class Pipeline:
         tasks = list(self.funcs.keys())
         msg = 'Tasks in pipeline:\n'
         for task in tasks:
-            msg += f'\t{task}\n'
+            msg += '\t{}\n'.format(task)
         print(msg, end='')
 
     def run(self, task=None, **context):
@@ -155,7 +155,7 @@ class Pipeline:
         else:
             self.log('Auto-running DAG.')
             for func in self.funcs.values():
-                self.log(f'Attempting function <{func.__name__}>.')
+                self.log('Attempting function <{}>.'.format(func.__name__))
                 func(**context)
 
     def get_downstream_tasks(self, task):
@@ -182,7 +182,7 @@ class Pipeline:
         for output in outputs:
             if output._check(context):
                 loc = output.loc.format(**context)
-                self.log(f'Deleting <{output.name}> at \'{loc}\'.')
+                self.log('Deleting <{}> at \'{loc}\'.'.format(output.name))
                 output._delete(context)
 
     def undo(self, task=None, downstream=False, **context):
@@ -198,7 +198,7 @@ class Pipeline:
             tasks_to_undo = [task]
         else:
             tasks_to_undo = self.funcs.keys()
-        self.log(f'Undoing tasks {list(tasks_to_undo)}.')
+        self.log('Undoing tasks {}.'.format(list(tasks_to_undo)))
         self.delete_output(tasks_to_undo, context)
 
 
