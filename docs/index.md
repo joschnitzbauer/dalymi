@@ -38,7 +38,7 @@ Links:
 
 ## Installation
 
-_dalymi_ requires Python >= 3.6.
+_dalymi_ requires Python >= 3.5.
 
 ```bash
 pip install dalymi
