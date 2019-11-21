@@ -42,7 +42,7 @@ class Pipeline:
             self.log('Checking if outputs of function <{}> exist.'.format(func.__name__))
             missing = [_ for _ in output if not _._check(context)]
             if missing:
-                self.log('Missing outputs {} of function <{}>.'.format([_.name for _ in missing],func.__name__))
+                self.log('Missing outputs {} of function <{}>.'.format([_.name for _ in missing], func.__name__))
             else:
                 self.log('Skipping function <{}>, because all outputs exist.'.format(func.__name__))
                 return
@@ -122,7 +122,7 @@ class Pipeline:
             table += '</TABLE>>'
             dot += '\t{} [label={} fontsize=12 height=0 margin=0 shape=none width=0]'.format(resource.name, table)
             # the edge:
-            dot += '\t{} -> {}\n'.format(func.__name__,resource.name)
+            dot += '\t{} -> {}\n'.format(func.__name__, resource.name)
         # edges for consumers:
         for resource_name, func_name in self.consumers:
             dot += '\t{} -> {}\n'.format(resource_name, func_name)
