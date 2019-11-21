@@ -182,7 +182,7 @@ class Pipeline:
         for output in outputs:
             if output._check(context):
                 loc = output.loc.format(**context)
-                self.log('Deleting <{}> at \'{loc}\'.'.format(output.name))
+                self.log('Deleting <{}> at \'{}\'.'.format(output.name, loc))
                 output._delete(context)
 
     def undo(self, task=None, downstream=False, **context):

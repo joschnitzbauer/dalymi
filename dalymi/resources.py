@@ -85,7 +85,7 @@ class PandasDF(Resource):
         if self.columns is not None:
             assert set(df.columns) == set(self.columns), \
                 'Columns of resource <{}> do not match expected. '.format(self.name) \
-                + 'Present: {}. Expected: {}.'.format(set(df.columns,set(self.columns)))
+                + 'Present: {}. Expected: {}.'.format(set(df.columns, set(self.columns)))
 
 
 class PandasCSV(LocalFileMixin, PandasDF):

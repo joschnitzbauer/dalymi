@@ -15,4 +15,4 @@ setup(author='Joerg Schnitzbauer',
       name='dalymi',
       packages=['dalymi'],
       url='https://github.com/joschnitzbauer/dalymi',
-      version='0.1.4')
+      version='0.1.5')

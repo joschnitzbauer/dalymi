@@ -5,3 +5,4 @@ data/
 MANIFEST
 __pycache__/
 *.egg-info/
+.vscode/settings.json
