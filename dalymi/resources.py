@@ -33,22 +33,22 @@ class Resource:
             assertion(data)
 
     def check(self, path):
-        msg = f'Could not *check* resource <{self.name}> (and possibly others), '
+        msg = f'Could not *check* resource <{}> (and possibly others), '.format(self.name)
         msg += 'because the resource class has no implementation of the `check` method.'
         raise NotImplementedError(msg)
 
     def delete(self, path):
-        msg = f'Could not *delete* resource <{self.name}> (and possibly others), '
+        msg = 'Could not *delete* resource <{}> (and possibly others), '.format(self.name)
         msg += 'because the resource class has no implementation of the `delete` method.'
         raise NotImplementedError(msg)
 
     def load(self, path):
-        msg = f'Could not *load* resource <{self.name}> (and possibly others), '
+        msg = 'Could not *load* resource <{}> (and possibly others), '.format(self.name)
         msg += 'because the resource class has no implementation of the `load` method.'
         raise NotImplementedError(msg)
 
     def save(self, path, data):
-        msg = f'Could not *save* resource <{self.name}> (and possibly others), '
+        msg = 'Could not *save* resource <{}> (and possibly others), '.format(self.name)
         msg += 'because the resource class has no implementation of the `save` method.'
         raise NotImplementedError(msg)
 
@@ -84,7 +84,7 @@ class PandasDF(Resource):
     def assert_columns(self, df):
         if self.columns is not None:
             assert set(df.columns) == set(self.columns), \
-                f'Columns of resource <{self.name}> do not match expected. ' \
+                'Columns of resource <{}> do not match expected. '.format(self.name) \
                 + f'Present: {set(df.columns)}. Expected: {set(self.columns)}.'
 
 
