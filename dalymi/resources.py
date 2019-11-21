@@ -33,7 +33,7 @@ class Resource:
             assertion(data)
 
     def check(self, path):
-        msg = f'Could not *check* resource <{}> (and possibly others), '.format(self.name)
+        msg = 'Could not *check* resource <{}> (and possibly others), '.format(self.name)
         msg += 'because the resource class has no implementation of the `check` method.'
         raise NotImplementedError(msg)
 
