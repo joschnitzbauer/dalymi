@@ -2,7 +2,7 @@
 
 _[data like you mean it]_
 
-[![Documentation Status](https://readthedocs.org/projects/dalymi/badge/?version=latest)](http://dalymi.readthedocs.io/en/latest/?badge=latest) ![](https://github.com/joschnitzbauer/dalymi/workflows/tests/badge.svg)
+[![Documentation Status](https://readthedocs.org/projects/dalymi/badge/?version=latest)](http://dalymi.readthedocs.io/en/latest/?badge=latest) ![](https://github.com/joschnitzbauer/dalymi/workflows/tests/badge.svg?branch=master)
 
 A lightweight, data-focused and non-opinionated pipeline manager written in and for Python.
 
