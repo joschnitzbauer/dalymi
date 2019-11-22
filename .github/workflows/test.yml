@@ -20,7 +20,7 @@ jobs:
     - name: Update API reference
       run: |
         pip install pydoc-markdown
-        pydocmd dalymi.pipeline++ dalymi.resources++ > docs/reference.md
+        pydocmd simple dalymi.pipeline++ dalymi.resources++ > docs/reference.md
     - name: Commit updated API reference
       uses: EndBug/add-and-commit@v2.1.0
       with:
