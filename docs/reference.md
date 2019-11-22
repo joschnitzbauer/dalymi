@@ -1,16 +1,13 @@
-<h1 id="dalymi.pipeline">dalymi.pipeline</h1>
+# dalymi.pipeline
 
-
-<h1 id="dalymi.pipeline.Pipeline">Pipeline</h1>
-
+## Pipeline
 ```python
 Pipeline(self)
 ```
 
 The main API to generate dalymi pipelines.
 
-<h1 id="dalymi.pipeline.Pipeline.input">input</h1>
-
+### input
 ```python
 Pipeline.input(self, *input)
 ```
@@ -24,8 +21,7 @@ __Arguments__
 
 - __*input__: a list of resource objects
 
-<h1 id="dalymi.pipeline.Pipeline.output">output</h1>
-
+### output
 ```python
 Pipeline.output(self, *output)
 ```
@@ -40,16 +36,21 @@ __Arguments__
 
 - __*output__: a list of resource objects
 
-<h1 id="dalymi.pipeline.Pipeline.cli">cli</h1>
-
+### cli
 ```python
 Pipeline.cli(self)
 ```
 
 Runs the default command line interface of this `Pipeline`.
 
-<h1 id="dalymi.pipeline.PipelineCLI">PipelineCLI</h1>
+### log
+```python
+Pipeline.log(self, message)
+```
 
+Logs the supplied message to a Python logger named `__name__` on log level `INFO`.
+
+## PipelineCLI
 ```python
 PipelineCLI(self, pipeline)
 ```
@@ -66,19 +67,16 @@ __Attributes__
 - `dot_parser (argparse.ArgumentParser)`: handles the `dot` sub-command
 - `ls_parser (argparse.ArgumentParser)`: handles the `ls` sub-command
 
-<h2 id="dalymi.pipeline.PipelineCLI.run">run</h2>
-
+### run
 ```python
-PipelineCLI.run(self)
+PipelineCLI.run(self, external_context={})
 ```
 
 Parses arguments and runs the provided command.
 
-<h1 id="dalymi.resources">dalymi.resources</h1>
+# dalymi.resources
 
-
-<h2 id="dalymi.resources.LocalFileMixin">LocalFileMixin</h2>
-
+## LocalFileMixin
 ```python
 LocalFileMixin(self, /, *args, **kwargs)
 ```
@@ -86,8 +84,7 @@ LocalFileMixin(self, /, *args, **kwargs)
 Provides default `check` and `delete` methods for local file resources.
 Inherit from this before other resource classes to avoid `NotImplementedError`.
 
-<h3 id="dalymi.resources.LocalFileMixin.makedirs">makedirs</h3>
-
+### makedirs
 ```python
 LocalFileMixin.makedirs(self, path)
 ```
