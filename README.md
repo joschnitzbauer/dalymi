@@ -85,7 +85,7 @@ More examples can be found [here](https://github.com/joschnitzbauer/dalymi/tree/
 ## Roadmap
 - More docstrings
 - Unit tests
-- Continuous integration
+- Action to publish on PyPI on new release
 - Parallel task processing
 - REST API during pipeline run
 - Web interface for pipeline run
