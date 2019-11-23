@@ -31,6 +31,7 @@ jobs:
         pytest
     - name: Test CLI
       run: |
+        pip install matplotlib pandas scikit-learn pyyaml
         python examples/iris.py run
         python examples/shouldnotwork.py
     - name: Update API reference
