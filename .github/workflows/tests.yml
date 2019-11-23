@@ -35,7 +35,8 @@ jobs:
         cd examples
         python iris.py
         python iris.py run
-        python shouldnotwork.py
+        ls data/clusters\=3/plot.png
+        ls data/clusters\=3/shouldnotwork.png
     - name: Update API reference
       run: |
         pip install pydoc-markdown
