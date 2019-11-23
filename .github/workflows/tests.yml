@@ -49,7 +49,7 @@ jobs:
         \[ -f data/prepared.csv ] && exit 1 || echo "Output file missing as expected"
         \[ -f data/raw.csv ] && echo "Found expected output file" || exit 1
         python iris.py dot
-        apt install graphviz
+        sudo apt-get install graphviz
         dot -Tpng pipeline.dot -o pipeline.png
         cd ..
     - name: Update API reference
