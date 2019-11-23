@@ -38,8 +38,20 @@ jobs:
         python iris.py run
         \[ -f data/clusters\=3/plot.png ] && echo "Found expected output file" || exit 1
         python iris.py undo
-        \[ -f data/clusters\=3/plot.png ] && exit 1 || echo "Output file deleted as expected"
-        \[ -f iris.py ] && exit 1 || echo "This should not be printed"
+        \[ -f data/clusters\=3/plot.png ] && exit 1 || echo "Output file missing as expected"
+        python iris.py run --task predict_clusters
+        \[ -f data/clusters\=3/predictions.csv ] && echo "Found expected output file" || exit 1
+        \[ -f data/clusters\=3/plot.png ] && exit 1 || echo "Output file missing as expected"
+        python iris.py undo --task predict_clusters
+        \[ -f data/clusters\=3/predictions.csv ] && exit 1 || echo "Output file missing as expected"
+        python iris.py undo --task prep_data --downstream
+        \[ -f data/clusters\=3/model.pkl ] && exit 1 || echo "Output file missing as expected"
+        \[ -f data/prepared.csv ] && exit 1 || echo "Output file missing as expected"
+        \[ -f data/raw.csv ] && echo "Found expected output file" || exit 1
+        python iris.py dot
+        apt install graphviz
+        dot -Tpng pipeline.dot -o pipeline.png
+        cd ..
     - name: Update API reference
       run: |
         pip install pydoc-markdown
