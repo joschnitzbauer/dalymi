@@ -32,8 +32,10 @@ jobs:
     - name: Test CLI
       run: |
         pip install matplotlib pandas scikit-learn pyyaml
-        python examples/iris.py run
-        python examples/shouldnotwork.py
+        cd examples
+        python iris.py
+        python iris.py run
+        python shouldnotwork.py
     - name: Update API reference
       run: |
         pip install pydoc-markdown
