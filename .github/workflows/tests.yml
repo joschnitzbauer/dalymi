@@ -29,6 +29,10 @@ jobs:
         pip install pytest
         pip install -e .
         pytest
+    - name: Test CLI
+      run: |
+        python examples/iris.py run
+        python examples/shouldnotwork.py
     - name: Update API reference
       run: |
         pip install pydoc-markdown
