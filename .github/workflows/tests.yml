@@ -36,11 +36,11 @@ jobs:
         python iris.py
         python iris.py ls
         python iris.py run
-        "[ -f data/clusters\=3/plot.png ] && echo 'Found expected output file' || exit 1"
-        "[ -f shouldnotpass ] && echo 'Found expected output file' || exit 1"
+        \[ -f data/clusters\=3/plot.png ] && echo "Found expected output file" || exit 1
+        \[ -f shouldnotpass ] && echo "Found expected output file" || exit 1
         python iris.py undo
-        "[ -f data/clusters\=3/plot.png ] && exit 1 || echo 'Output file deleted as expected'"
-        "[ -f iris.py ] && exit 1 || echo 'This should not be printed'"
+        \[ -f data/clusters\=3/plot.png ] && exit 1 || echo "Output file deleted as expected"
+        \[ -f iris.py ] && exit 1 || echo "This should not be printed"
     - name: Update API reference
       run: |
         pip install pydoc-markdown
