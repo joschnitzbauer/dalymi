@@ -1,64 +1,81 @@
 import argparse
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, wait, FIRST_COMPLETED
 from functools import wraps
-import itertools
+from itertools import chain
 import logging
 import pprint
 
 
+# @TODO:
+# - make all strings use double quots (all other files)
+# - Refine log messages (use task instead of function)
+# - Update docu
+# - Write tests for threaded execution (move it to bash script)
+# - New dot file creation
+# - Enable process pool executor: currently fails, update docu, write tests
+
+
+def log(message):
+    """Logs the supplied message to a Python logger named `__name__` on log level `INFO`."""
+    logger = logging.getLogger(__name__)
+    logger.info(message)
+
+
+class Task:
+
+    def __init__(self, func):
+        self.func = func
+        self.input = set()
+        self.output = set()
+
+    def __str__(self):
+        return self.func.__name__
+
+    def __repr__(self):
+        return self.func.__name__
+
+    def add_input(self, input):
+        if self.input:
+            raise ValueError("Task <{}> already has input defined.".format(self.func.__name__))
+        self.input.update(input)
+
+    def add_output(self, output):
+        if self.output:
+            raise ValueError("Task <{}> already has output defined.".format(self.func.__name__))
+        self.output.update(output)
+
+    def complete(self, context):
+        """Returns True if all output resources exist, False otherwise."""
+        return all([resource._check(context) for resource in self.output])
+
+    def ready(self, context):
+        """Returns True if all input resources exist, False otherwise."""
+        return all([resource._check(context) for resource in self.input])
+
+    def run(self, context):
+        """Convenience function to facilitate logging."""
+        log("Running <{}>.".format(self))
+        self.func(**context)
+        log("<{}> finished.".format(self))
+
+    def undo(self, context):
+        """Deletes all possible output."""
+        log("Undoing <{}>.".format(self))
+        for resource in self.output:
+            if resource._check(context):
+                loc = resource.loc.format(**context)
+                log("Deleting <{}> at '{}'.".format(resource.name, loc))
+                resource._delete(context)
+
+
 class Pipeline:
-    '''
-    The main API to generate dalymi pipelines.
-    '''
+    """The main API to generate dalymi pipelines."""
 
     def __init__(self):
-        self.outputs = {}    # keys: funcs, values: list of output resources
-        self.producers = {}  # keys: resources, values: funcs_wrapped
-        self.funcs = {}      # keys: func names, values: funcs_wrapped
-        self.consumers = []  # list of (resource name, func name)
-        self.original_funcs = {}  # keys: funcs_wrapped, values: funcs
-
-    def _create_input_wrapper(self, func, input):
-
-        @wraps(func)
-        def func_wrapped(**context):
-            missing = [_ for _ in input if not _._check(context)]
-            producers_missing = [self.producers[_] for _ in missing]
-            for producer in producers_missing:
-                self.log('Running producer <{}>.'.format(producer.__name__))
-                producer(**context)
-            self.log('Loading inputs {}.'.format([_.name for _ in input]))
-            input_dict = {_.name: _._load(context) for _ in input}
-            kwargs = {**input_dict, **context}
-            self.log('Attempting to run function <{}>.'.format(func.__name__))
-            results = func(**kwargs)
-            return results
-
-        return func_wrapped
-
-    def _create_output_wrapper(self, func, output):
-
-        @wraps(func)
-        def func_wrapped(**context):
-            self.log('Checking if outputs of function <{}> exist.'.format(func.__name__))
-            missing = [_ for _ in output if not _._check(context)]
-            if missing:
-                self.log('Missing outputs {} of function <{}>.'.format([_.name for _ in missing], func.__name__))
-            else:
-                self.log('Skipping function <{}>, because all outputs exist.'.format(func.__name__))
-                return
-            results = func(**context)
-            if not isinstance(results, tuple):
-                results = (results,)
-            self.log('Saving outputs of function <{}>.'.format(func.__name__))
-            resources = self.outputs[func]
-            for resource, result in zip(resources, results):
-                resource._save(result, context)
-            return results
-
-        return func_wrapped
+        self.tasks = {}
 
     def input(self, *input):
-        '''
+        """
         A decorator to specify input resources for the decorated task.
 
         !!! warning
@@ -66,21 +83,34 @@ class Pipeline:
 
         # Arguments
         *input: a list of resource objects
-        '''
+        """
         def decorator(func):
-            func_wrapped = self._create_input_wrapper(func, input)
-            self.log('Registering <{}> as a consumer function.'.format(func.__name__))
-            self.consumers.extend([(_.name, func.__name__) for _ in input])
-            # This will be overwritten by an output decorator, because the output decorator
-            # has to wrap the input decorator:
-            self.funcs[func.__name__] = func_wrapped
-            # Same here:
-            self.original_funcs[func_wrapped] = func
+            task_name = func.__name__
+
+            @wraps(func)
+            def func_wrapped(**context):
+                log("Loading inputs {}.".format([resource.name for resource in input]))
+                input_dict = {resource.name: resource._load(context) for resource in input}
+                kwargs = {**input_dict, **context}
+                results = func(**kwargs)
+                return results
+
+            log("Registering <{}> as a consumer function.".format(task_name))
+            if task_name in self.tasks:
+                # Input decorators should always be the inner decorator and inner decorators are executed first.
+                # Hence, there should not be a task with the same name already:
+                raise KeyError("A task with name <{}> already exists".format(task_name))
+            else:
+                task = Task(func_wrapped)
+                log("Registering <{}> as input to <{}>.".format([resource.name for resource in input], task_name))
+                task.add_input(input)
+                self.tasks[task_name] = task
+
             return func_wrapped
         return decorator
 
     def output(self, *output):
-        '''
+        """
         A decorator to specify output resources for the decorated task.
 
         !!! warning
@@ -89,121 +119,182 @@ class Pipeline:
 
         # Arguments
         *output: a list of resource objects
-        '''
+        """
         def decorator(func):
-            func_wrapped = self._create_output_wrapper(func, output)
-            self.log('Registering {} as output of <{}>.'.format([_.name for _ in output], func.__name__))
-            self.outputs[func] = output
-            for resource in output:
-                self.producers[resource] = func_wrapped
-            self.log('Registering <{}> as producer function.'.format(func.__name__))
-            self.funcs[func.__name__] = func_wrapped
-            self.original_funcs[func_wrapped] = func
+            task_name = func.__name__
+
+            @wraps(func)
+            def func_wrapped(**context):
+                results = func(**context)
+                if not isinstance(results, tuple):
+                    results = (results,)
+                log("Saving outputs of function <{}>.".format(task_name))
+                task = self.tasks[task_name]
+                for resource, result in zip(task.output, results):
+                    resource._save(result, context)
+                return results
+
+            log("Registering <{}> as a producer function.".format(task_name))
+            if task_name in self.tasks:
+                # Task could have been created by an inner input decorator.
+                # Hence, we need to update the wrapped function, so that also output code is run on execution:
+                task = self.tasks[task_name]
+                task.func = func_wrapped
+            else:
+                # Function has no input decorator, which is fine. We create a new task:
+                task = Task(func_wrapped)
+                self.tasks[task_name] = task
+            log("Registering <{}> as producer of <{}>.".format(task_name, [resource.name for resource in output]))
+            task.add_output(output)
+
             return func_wrapped
         return decorator
 
+    def get_completed(self, context):
+        """Returns all tasks that are completed."""
+        return [task for task in self.tasks.values() if task.complete(context)]
+
+    def get_producer(self, resource):
+        """Finds the producing task for a resource."""
+        for task in self.tasks.values():
+            if resource in task.output:
+                return task
+        # if we arrive here, no producer was found
+        raise ValueError("No producer found for task <{}>.".format(task.func.__name__))
+
+    def get_ready(self, context):
+        """Returns all tasks that are ready to run."""
+        return [task for task in self.tasks.values() if task.ready(context)]
+
+    def get_upstream(self, task, already_found=set()):
+        """Recursively finds all tasks that are required to run so that all inputs for the given task are present."""
+        input_producers = set([self.get_producer(resource) for resource in task.input])
+        already_found.update(input_producers)
+        for input_producer in input_producers:
+            self.get_upstream(input_producer, already_found=already_found)
+        return already_found
+
     def cli(self):
-        '''
-        Runs the default command line interface of this `Pipeline`.
-        '''
+        """Runs the default command line interface of this `Pipeline`."""
         pipeline_cli = PipelineCLI(self)
         pipeline_cli.run()
 
-    def dot(self, T='pdf'):
-        dot = 'digraph pipeline {\n'
+    def dot(self, T="pdf"):
+        # @TODO: rewrite
+
+        dot = "digraph pipeline {\n"
         for func in self.funcs:
-            dot += '\t{} [fontsize=13]\n'.format(func)
+            dot += "\t{} [fontsize=13]\n".format(func)
         for resource, func in self.producers.items():
-            table = '<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">'
-            table += '<TR><TD bgcolor="grey">{}</TD></TR>'.format(resource.name)
-            if hasattr(resource, 'columns') and resource.columns is not None:
+            table = "<<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">"
+            table += "<TR><TD bgcolor=\"grey\">{}</TD></TR>".format(resource.name)
+            if hasattr(resource, "columns") and resource.columns is not None:
                 for column in resource.columns:
-                    table += '<TR><TD>{}</TD></TR>'.format(column)
-            table += '</TABLE>>'
-            dot += '\t{} [label={} fontsize=12 height=0 margin=0 shape=none width=0]'.format(resource.name, table)
+                    table += "<TR><TD>{}</TD></TR>".format(column)
+            table += "</TABLE>>"
+            dot += "\t{} [label={} fontsize=12 height=0 margin=0 shape=none width=0]".format(resource.name, table)
             # the edge:
-            dot += '\t{} -> {}\n'.format(func.__name__, resource.name)
+            dot += "\t{} -> {}\n".format(func.__name__, resource.name)
         # edges for consumers:
         for resource_name, func_name in self.consumers:
-            dot += '\t{} -> {}\n'.format(resource_name, func_name)
-        dot += '}\n'
-        with open('pipeline.dot', 'w') as f:
+            dot += "\t{} -> {}\n".format(resource_name, func_name)
+        dot += "}\n"
+        with open("pipeline.dot", "w") as f:
             f.write(dot)
 
-    def log(self, message):
-        '''
-        Logs the supplied message to a Python logger named `__name__` on log level `INFO`.
-        '''
-        logger = logging.getLogger(__name__)
-        logger.info(message)
-
     def ls(self):
-        tasks = list(self.funcs.keys())
-        msg = 'Tasks in pipeline:\n'
+        tasks = list(self.tasks.keys())
+        msg = "Tasks in pipeline:\n"
         for task in tasks:
-            msg += '\t{}\n'.format(task)
-        print(msg, end='')
+            msg += "\t{}\n".format(task)
+        print(msg, end="")
 
-    def run(self, task=None, **context):
-        context['task'] = task
+    def run(self, task=None, parallelism=None, **context):
+        context["task"] = task
+        allowed_parallelism = [None, "none", "threads", "processes"]
+        if parallelism not in allowed_parallelism:
+            raise ValueError("Parallelism has to be one of {}".format(allowed_parallelism))
+        parallelism = None if parallelism == "none" else parallelism
+        context["parallelism"] = parallelism
         pretty_context = pprint.pformat(context)
-        pretty_indented_context = '\n'.join(['  ' + _ for _ in pretty_context.split('\n')])
-        self.log('Running with context:\n' + pretty_indented_context)
-        if task:
-            func = self.funcs[task]
-            func(**context)
+        pretty_indented_context = "\n".join(["  " + _ for _ in pretty_context.split("\n")])
+        log("Running with context:\n" + pretty_indented_context)
+        if task is not None:
+            task_instance = self.tasks[task]
+            to_complete = set([task_instance]) | self.get_upstream(task_instance)
         else:
-            self.log('Auto-running DAG.')
-            for func in self.funcs.values():
-                self.log('Attempting function <{}>.'.format(func.__name__))
-                func(**context)
+            to_complete = self.tasks.values()
+        to_complete = set(to_complete)
+        log("Tasks to be completed: {}".format(list(to_complete)))
+        if parallelism:
+            workers = context["workers"]
+            submitted = set()
+            futures = dict()  # keys: futures, values: tasks
+        if parallelism == "threads":
+            log("Activating threaded mode with {} threads.".format(workers))
+            executor = ThreadPoolExecutor(max_workers=workers)
+        if parallelism == "processes":
+            log("Activating multiprocessing mode with {} workers.".format(workers))
+            executor = ProcessPoolExecutor(max_workers=workers)
+        while True:
+            completed = set(self.get_completed(context))
+            log("Completed tasks: {}".format(list(completed)))
+            if set(completed) == set(to_complete):
+                log("All tasks completed.")
+                break
+            ready = self.get_ready(context)
+            log("Tasks with all required input: {}".format(list(ready)))
+            to_start = (set(to_complete) - set(completed)) & set(ready)
+            log("Tasks to be executed: {}".format(list(to_start)))
+            if parallelism:
+                to_start -= submitted
+                log("Submitting tasks {} to the worker pool.".format(list(to_start)))
+                new_futures = {executor.submit(task.run, context): task for task in to_start}
+                submitted.update(to_start)
+                futures.update(new_futures)
+                log("Waiting for a task to finish.")
+                done, not_done = wait(futures.keys(), return_when=FIRST_COMPLETED)
+                single_done = tuple(done)[0]
+                # finished_task = futures[single_done]  # we may use this at some point
+                # remove the future so that we don"t get it returned by the waiting function anymore:
+                del futures[single_done]
+            else:
+                to_run = tuple(to_start)[0]
+                to_run.run(context)
+                # finished_task = to_run  # we may use this at some point
 
-    def get_downstream_tasks(self, task):
-        func = self.funcs[task]
-        original_func = self.original_funcs[func]
-        if original_func in self.outputs:
-            func_outputs = self.outputs[original_func]
-        else:
-            func_outputs = []
-        consumers = set()
-        for output in func_outputs:
-            output_consumers = [fn for rn, fn in self.consumers if rn == output.name]
-            consumers.update(output_consumers)
-            for consumer in output_consumers:
-                consumer_consumers = self.get_downstream_tasks(consumer)
-                consumers.update(consumer_consumers)
-        return consumers
+    def get_consumers(self, resource):
+        """Finds consuming tasks of a resource."""
+        return [task for task in self.tasks.values() if resource in task.input]
 
-    def delete_output(self, tasks, context):
-        funcs = [self.funcs[_] for _ in tasks]
-        original_funcs = [self.original_funcs[_] for _ in funcs]
-        funcs_outputs = [self.outputs[_] for _ in original_funcs if _ in self.outputs]
-        outputs = set(itertools.chain(*funcs_outputs))
-        for output in outputs:
-            if output._check(context):
-                loc = output.loc.format(**context)
-                self.log('Deleting <{}> at \'{}\'.'.format(output.name, loc))
-                output._delete(context)
+    def get_downstream(self, task, already_found=set()):
+        """Recursively finds all tasks downstream of the given task."""
+        output_consumers = set(chain(*[self.get_consumers(resource) for resource in task.output]))
+        already_found.update(output_consumers)
+        for output_consumer in output_consumers:
+            self.get_downstream(output_consumer, already_found=already_found)
+        return already_found
 
     def undo(self, task=None, downstream=False, **context):
-        context['task'] = task
-        context['downstream'] = downstream
+        context["task"] = task
+        context["downstream"] = downstream
         pretty_context = pprint.pformat(context)
-        pretty_indented_context = '\n'.join(['  ' + _ for _ in pretty_context.split('\n')])
-        self.log('Undoing with context:\n' + pretty_indented_context)
+        pretty_indented_context = "\n".join(["  " + _ for _ in pretty_context.split("\n")])
+        log("Undoing with context:\n" + pretty_indented_context)
         if task and downstream:
-            tasks_to_undo = self.get_downstream_tasks(task)
-            tasks_to_undo.add(task)
+            task_instance = self.tasks[task]
+            to_undo = set([task_instance]) | self.get_downstream(task_instance)
         elif task and not downstream:
-            tasks_to_undo = [task]
+            to_undo = [self.tasks[task]]
         else:
-            tasks_to_undo = self.funcs.keys()
-        self.log('Undoing tasks {}.'.format(list(tasks_to_undo)))
-        self.delete_output(tasks_to_undo, context)
+            to_undo = list(self.tasks.values())
+        log("Undoing tasks {}.".format(list(to_undo)))
+        for task_instance in to_undo:
+            task_instance.undo(context)
 
 
 class PipelineCLI():
-    '''
+    """
     A class representing the command line interface of a `Pipeline`.
 
     # Arguments
@@ -213,37 +304,40 @@ class PipelineCLI():
     run_parser (argparse.ArgumentParser): handles the `run` sub-command
     dot_parser (argparse.ArgumentParser): handles the `dot` sub-command
     ls_parser (argparse.ArgumentParser): handles the `ls` sub-command
-    '''
+    """
 
     def __init__(self, pipeline):
         self.pipeline = pipeline
 
         self.parser = argparse.ArgumentParser()
-        self.subparsers = self.parser.add_subparsers(dest='command')
+        self.subparsers = self.parser.add_subparsers(dest="command")
 
-        self.run_parser = self.subparsers.add_parser('run', help='run the pipeline')
-        self.run_parser.add_argument('-t', '--task', help='run/undo a specific task')
+        self.run_parser = self.subparsers.add_parser("run", help="run the pipeline")
+        self.run_parser.add_argument("-t", "--task", help="run/undo a specific task")
+        self.run_parser.add_argument("-p", "--parallelism", help="none, threads or processes",
+                                     choices=["none", "threads", "processes"], default="none")
+        self.run_parser.add_argument("-w", "--workers", help="number of workers for parallelism", type=int)
 
-        self.dot_parser = self.subparsers.add_parser('dot', help='create a graphviz dot file of the DAG')
+        self.dot_parser = self.subparsers.add_parser("dot", help="create a graphviz dot file of the DAG")
 
-        self.ls_parser = self.subparsers.add_parser('ls', help='list pipeline tasks')
+        self.ls_parser = self.subparsers.add_parser("ls", help="list pipeline tasks")
 
     def run(self, external_context={}):
-        '''
+        """
         Parses arguments and runs the provided command.
-        '''
-        undo_parser = self.subparsers.add_parser('undo', parents=[self.run_parser], add_help=False,
-                                                 description='undo tasks')
-        undo_parser.add_argument('-d', '--downstream', action='store_true', help='undo downstream tasks')
+        """
+        undo_parser = self.subparsers.add_parser("undo", parents=[self.run_parser], add_help=False,
+                                                 description="undo tasks")
+        undo_parser.add_argument("-d", "--downstream", action="store_true", help="undo downstream tasks")
         args = self.parser.parse_args()
         context = {**external_context, **vars(args)}
-        if args.command == 'run':
+        if args.command == "run":
             self.pipeline.run(**context)
-        elif args.command == 'undo':
+        elif args.command == "undo":
             self.pipeline.undo(**context)
-        elif args.command == 'dot':
+        elif args.command == "dot":
             self.pipeline.dot()
-        elif args.command == 'ls':
+        elif args.command == "ls":
             self.pipeline.ls()
         else:
             self.parser.print_help()
