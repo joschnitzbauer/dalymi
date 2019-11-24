@@ -8,6 +8,8 @@ import logging
 
 from dalymi import Pipeline, PipelineCLI
 from dalymi import resources
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
